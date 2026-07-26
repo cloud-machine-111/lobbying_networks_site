@@ -1,0 +1,123 @@
+---
+import Welcome from "../components/Welcome.astro";
+import Layout from "../layouts/Layout.astro";
+
+// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
+// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+---
+
+<Layout>
+  <div class="params">
+
+<label for="yr_input"><b>Year: </b></label>
+<input 
+  type="number" 
+  id="yr_input" 
+  name="year" 
+  min="2000" 
+  max="2021" 
+  value="2011"
+>
+
+  <b>Spending: </b> &nbsp;
+  <select id="log">
+    <option value="logged">log(spending)</option>
+    <option value="unlogged">plain spending</option>
+  </select>
+
+  &nbsp; &nbsp;
+
+  <b>Time frame: </b> &nbsp;
+  <select id="time_frame">
+    <option value="annual">annual</option>
+    <option value="aggregate">aggregate</option>
+  </select>
+
+  &nbsp;&nbsp;
+
+  <b>Agency: </b> &nbsp;
+  <select id="agency">
+    <option value="Environmental_Protection_Agency">Environmental Protection Agency</option>
+    <option value="US_Fish_&_Wildlife_Service">US Fish & Wildlife_Service</option>
+    <option value="Forest_Service">Forest Service</option>
+    <option value="Army_Corps_of_Engineers">Army Corps of Engineers</option>
+    <option value="National_Oceanic_&_Atmospheric_Admin">National Oceanic & Atmospheric Admin</option>
+    <option value="Dept_of_Energy">Dept of Energy</option>
+    <option value="US_Geological_Survey">US Geological Survey</option>
+    <option value="National_Park_Service">National Park Service</option>
+    <option value="Bureau_of_Reclamation">Bureau of Reclamation</option>
+    <option value="Bureau_of_Land_Management">Bureau of Land Management</option>
+    <option value="Nuclear_Regulatory_Commission">Nuclear Regulatory Commission</option>
+    <option value="x_agy">All agencies</option>
+  </select>
+
+  &nbsp;&nbsp;
+
+  <b>Weight type: </b> &nbsp;
+  <select id="weight_type">
+    <option value="base">base</option>
+    <option value="bill">bill</option>
+    <option value="agy_bill">agency-bill</option>
+    <option value="agy">agency</option>
+  </select>
+
+  <div id="slider-container"></div>
+  
+</div>
+
+  <div id="chart-container"></div>
+
+  <script type="module">
+    // import type { $brand } from "astro:schema";
+    import define from "../scripts/index.js";
+    import { Runtime, Library, Inspector } from "../scripts/runtime.js";
+
+    const runtime = new Runtime();
+    // runtime.module = method that calls a function (within Observable runtime) & parameterizes it.
+    const main = runtime.module(define, (name) => {
+      if (name === "chart")
+        return new Inspector(document.getElementById("chart-container")); // gets empty div, push cell value into div.
+
+      if (name === "viewof NODES_SHOWN")
+        return new Inspector(document.getElementById("slider-container"));
+      return null; // suppresses printouts.
+    });
+
+    // Add a new cell from outside observable_nwk_viz.js, using the returned `main`
+    main
+      .variable(null)
+      .define(
+        "DATASET_PATH",
+        [],
+        () => buildDatasetPath()
+      );
+
+      function buildDatasetPath() {
+        const log = document.getElementById("log").value;
+        const timeFrame = document.getElementById("time_frame").value;
+        const agency = document.getElementById("agency").value;
+        const weightType = document.getElementById("weight_type").value;
+        const yr = document.getElementById("yr_input").value;
+
+        let path = "";
+        if (timeFrame == "aggregate") {
+          // graph_jsons/aggregate/agy/titled_v2_bills_assoc_log_Army_Corps_of_Engineers_aggregate_infomap.json
+          path = `/data/graph_jsons/aggregate/${weightType}/titled_v2_bills_assoc_${log}_${agency}_aggregate_infomap.json`;
+        } else {
+          // graph_jsons/annual/per_agency/titled_v2_bills_assoc_Army_Corps_of_Engineers_agy_2000_logged.json
+          let agy_folder_str = "per_agency";
+          if (agency == "x_agy") {agy_folder_str = "x_agy"}
+          path =  `/data/graph_jsons/annual/${agy_folder_str}/titled_v2_bills_assoc_${agency}_${weightType}_${yr}_${log}.json`
+        }
+        console.log(path);
+        return path;
+      }
+
+  ["log", "time_frame", "agency", "weight_type", "yr_input"].forEach(id => {
+  document.getElementById(id).addEventListener("change", () => {
+    main.redefine("DATASET_PATH", buildDatasetPath());
+  });
+});
+
+  </script>
+</Layout>
