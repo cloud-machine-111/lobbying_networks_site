@@ -4,9 +4,24 @@ md`# Lobbying Networks
 Using [Plot](/@observablehq/plot). Other [database clients](https://observablehq.com/@observablehq/databases) are available.`
 )}
 
-function _data(DATASET_PATH){
-  return fetch(DATASET_PATH).then(r => r.json());
+const BASE_URL = "https://pub-88f9b6b7dae846e9b9fe6489e8c253b0.r2.dev"
+
+const cache = new Map();
+
+function _data(DATASET_PATH) {
+  if (cache.has(DATASET_PATH)) return cache.get(DATASET_PATH);
+  const path = BASE_URL + DATASET_PATH.replace("graph_jsons/", "")
+  const promise = fetch(path).then(r => {
+    if (!r.ok) throw new Error(`Failed to fetch ${path}: ${r.status}`);
+    return r.json();
+  });
+  cache.set(DATASET_PATH, promise);
+  return promise;
 }
+
+// function _data(DATASET_PATH){
+//   return fetch(DATASET_PATH).then(r => r.json());
+// }
 
 function _NODES_SHOWN(Inputs){return(
 Inputs.range([1, 400], {value: 80, step: 1, label: "Nodes shown"})
