@@ -14,7 +14,8 @@
   "dependencies": {
     "@observablehq/runtime": "^5.9.9",
     "astro": "^7.0.7",
-    "d3": "^7.9.0"
+    "d3": "^7.9.0",
+    "node": "^26.5.0"
   },
   "devDependencies": {
     "@types/d3": "^7.4.3"
