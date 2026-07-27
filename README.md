@@ -1,8 +1,17 @@
 ## Social Networks in Environmental Lobbing
 An explorer!
 ## Todo:
+data:
+- There are a few instances of edges where nodes no bills in common, but I think it's either a post-processing error (I have a guess in mind), or maybe the infomap algorithm jumping between disconnected subgraphs--if the latter, I'll drop those edges.
+
+interactivity:
 - hovering over a top-10 organization highlights it in sidebar 
 - adaptive sizing for explorer
+- add zoom
+- remove physics animation when jumping between years
+- keep node in selection when jumping between years
+
+soc:
 - add methodology section & writeup
 
 ## 🧞 Commands
