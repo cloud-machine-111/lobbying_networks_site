@@ -20,7 +20,7 @@ function _data(DATASET_PATH) {
 }
 
 function _NODES_SHOWN(Inputs){return(
-Inputs.range([1, 400], {value: 100, step: 1, label: "Nodes shown"})
+Inputs.range([1, 400], {value: 80, step: 1, label: "Nodes shown"})
 )}
 
 function _chart(d3,data,NODES_SHOWN,invalidation)
@@ -28,7 +28,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   // ---------------------------------------------------------------------------
   // 1. CONFIGURATION & STATE MANAGEMENT
   // ---------------------------------------------------------------------------
-  const width = 728, height = 828;
+  const width = 728, height = 1028;
   const NEON_COLOR = "#ccff00";
   const FONT_FAMILY = "'Helvetica', Sans-serif";
 
@@ -321,7 +321,8 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
       .style("font-weight", "normal")
       .attr("font-size", 13)
       // .text(`${data.metadata.log} on spending`);
-      .text(`${data.metadata.log == "true" ? "log" : "no log"} on spending - `);
+      // .text(`weight type: bill`)
+      .text(`${(weight_type == "base") ? "" : `${data.metadata.log ? "log" : "no log"} on spending`}`); // TODO: need to add data.metadata.wt_typ into data
       
   
   svg.append("text")

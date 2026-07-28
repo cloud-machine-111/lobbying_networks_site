@@ -167,7 +167,7 @@ const AGENCIES = [
   "Nuclear_Regulatory_Commission",
   "x_agy"
 ];
-const WEIGHT_TYPES = ["base"];//, "bill", "agy_bill", "agy"];
+const WEIGHT_TYPES = ["agy"];//["base", "bill", "agy_bill", "agy"];
 const LOG_OPTIONS = ["logged", "unlogged"];
 
 function setSelect(id, value) {
@@ -189,7 +189,7 @@ async function screenshotCurrentChart(filename) {
   link.click();
 }
 
-async function runBatchScreenshots({ dryRun = false, settleMs = 3200, verbose = true } = {}) {
+async function runBatchScreenshots({ dryRun = false, settleMs = 20200, verbose = true } = {}) {
   setSelect("time_frame", "aggregate");
 
   let count = 0;
