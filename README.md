@@ -5,6 +5,7 @@ data:
 - There are a few instances of edges where nodes no bills in common, but I think it's either a post-processing error (I have a guess in mind), or maybe the infomap algorithm jumping between disconnected subgraphs--if the latter, I'll drop those edges.
 
 interactivity:
+- I just realized - are we overcounting bill appearances (edge count) in the info boxes?
 - remove physics animation when jumping between years
 - keep node in selection when jumping between years
 - add weight type to json metadata
