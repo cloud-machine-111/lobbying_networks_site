@@ -6,4 +6,3 @@ export default defineConfig({
     site: 'https://cloud-machine-111.github.io',
     base: '/lobbying_networks_site',
 });
- 

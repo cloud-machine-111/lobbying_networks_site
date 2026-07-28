@@ -41,6 +41,8 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   let SELECTED_EDGE = null;
   let SELECTED_BILL_ID = null;   // set by clicking a "top bills by frequency" row
   let HOVERED_MODULE = null;     // module_id currently hovered, for hull glow
+  let HOVERED_NODE_ID = null;    // node id currently hovered (via node itself OR its bar row)
+  let adjacentNodeIds = new Set(); // recomputed by updateStyles, read by nodeStrokeColor/Width
 
   let FORCE_XY = .4;
   let FORCE_MANY_BODY = -200;
@@ -70,6 +72,17 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
 
   // Helper for tracking node/edge IDs across potential object mutations
   const idOf = ep => typeof ep === "object" ? ep.id : ep;
+
+  // Helper: initials shown on top-10-by-flow nodes, e.g. "American Petroleum Institute" -> "AP"
+  function getInitials(name) {
+    if (!name) return "";
+    return name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(w => w[0].toUpperCase())
+      .join("");
+  }
 
   // Filter top nodes by flow
   const topNodes = [...data.nodes].sort((a, b) => b.flow - a.flow).slice(0, NODES_SHOWN);
@@ -157,7 +170,9 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
     return (s === idA && t === idB) || (s === idB && t === idA);
   });
 
-  // Top 10 flow node IDs for stroke highlight styling
+  // Top 10 flow node IDs per module (also used to decide which nodes get initials, and which
+  // bar-chart rows are eligible for the node<->bar hover link, since both sets are built the
+  // same way: top 10 by flow within each module).
   const top10FlowIds = new Set(
     d3.rollups(nodes, g => [...g].sort((a, b) => b.flow - a.flow).slice(0, 10).map(d => d.id), d => d.module_id)
       .flatMap(([, ids]) => ids)
@@ -165,10 +180,40 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   const baseStroke = d => top10FlowIds.has(d.id) ? NEON_COLOR : "#000";
   const baseStrokeWidth = d => top10FlowIds.has(d.id) ? 1.8 : 0.3;
 
+  // Single source of truth for node stroke color/width, combining: base top-10 styling,
+  // primary/secondary selection, edge-adjacency, and cross-hover with the side-panel bar chart.
+  function nodeStrokeColor(d) {
+    if (d.id === HOVERED_NODE_ID) return NEON_COLOR;
+    if (d === PRIMARY_NODE || d === SECONDARY_NODE || adjacentNodeIds.has(d.id)) return NEON_COLOR;
+    return baseStroke(d);
+  }
+  function nodeStrokeWidth(d) {
+    let w = baseStrokeWidth(d);
+    if (d === PRIMARY_NODE || d === SECONDARY_NODE) w += 4;
+    if (d.id === HOVERED_NODE_ID) w = Math.max(w + 2, 3);
+    return w;
+  }
+  // Re-applies stroke color/width only (no selection recompute, no promotion) — cheap enough
+  // to call on every hover in/out from the side-panel "Top nodes by flow" bar chart.
+  function updateNodeHover() {
+    node.attr("stroke", nodeStrokeColor).attr("stroke-width", nodeStrokeWidth);
+  }
+
+  // Map of node id -> the <g> row element in "Top nodes by flow", so hovering a top-10 node
+  // can highlight its bar, and vice versa. Rebuilt each time the panel re-renders.
+  let topNodeBarRowsById = new Map();
+  function highlightBarRow(id, on) {
+    const rowSel = topNodeBarRowsById.get(id);
+    if (!rowSel) return;
+    rowSel.select("rect")
+      .attr("stroke", on ? NEON_COLOR : null)
+      .attr("stroke-width", on ? 2 : null);
+  }
+
   // ---------------------------------------------------------------------------
   // 3. GRAPH ELEMENTS (LINKS, NODES, HULLS, LEGEND)
   // ---------------------------------------------------------------------------
-  // All pannable graph layers live inside panGroup so a single transform moves them together.
+  // All pannable/zoomable graph layers live inside panGroup so a single transform moves them.
   const panGroup = svg.append("g").attr("class", "pan-group");
   const hullGroup = panGroup.append("g").attr("class", "hulls").lower();
   const linkGroup = panGroup.append("g").attr("class", "links");
@@ -188,10 +233,33 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
     .selectAll("circle") // select all <circle> elts in NodeGroup
     .data(nodes) // bind each circle to a datum within nodes[]
     .join("circle") // shorthand that (1) creates new circles for new datum (2) updates circles for existing datums (3) removes DOM elt if delete.
-    .attr("stroke", baseStroke) // customizes ea. node
-    .attr("stroke-width", baseStrokeWidth)
+    .attr("stroke", nodeStrokeColor) // customizes ea. node
+    .attr("stroke-width", nodeStrokeWidth)
     .attr("r", d => radius(d.flow))
     .attr("fill", d => org_color(d.org_typ));
+
+  // TODO 1: initials label on every top-10-by-flow node. Drawn in nodeGroup right after the
+  // circles so they sit above their own node but below anything later promoted to topLayer.
+  const nodeLabels = nodeGroup
+    .selectAll("text")
+    .data(nodes.filter(d => top10FlowIds.has(d.id)), d => d.id)
+    .join("text")
+    .attr("text-anchor", "middle")
+    .attr("dy", "0.32em")
+    .attr("font-family", FONT_FAMILY)
+    .attr("font-weight", "bold")
+    .attr("font-size", d => Math.max(8, Math.min(11, radius(d.flow) * 0.75)))
+    .attr("fill", "rgb(53, 58, 16)")
+    // .attr("stroke", "#fff")
+    // .attr("stroke-width", 1)
+    .attr("paint-order", "stroke fill")
+    .attr("pointer-events", "none")
+    .text(d => getInitials(d.name));
+
+  // id -> label DOM element, so a promoted (selected/hovered-to-top) node can bring its label
+  // along to topLayer with it.
+  const labelById = new Map();
+  nodeLabels.each(function (d) { labelById.set(d.id, this); });
 
   // Node Hover and Click Events
   node
@@ -202,36 +270,33 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
         .attr("stroke-width", ld => ld === d.org_typ ? 2 : null);
       HOVERED_MODULE = d.module_id;
       updateHullStyles();
+      // TODO 2: hovering a top-10 node highlights its matching bar in the side panel.
+      if (top10FlowIds.has(d.id)) highlightBarRow(d.id, true);
     })
     .on("mousemove", event => tooltip.style("left", `${event.pageX + 12}px`).style("top", `${event.pageY - 20}px`))
-    .on("mouseout", () => {
+    .on("mouseout", (event, d) => {
       tooltip.style("opacity", 0);
       legend.select("rect").attr("stroke", null).attr("stroke-width", null);
       HOVERED_MODULE = null;
       updateHullStyles();
+      if (top10FlowIds.has(d.id)) highlightBarRow(d.id, false);
     })
     .on("click", (event, d) => { event.stopPropagation(); handleNodeClick(d); })
     .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
 
   svg.on("click", deselectAll);
 
-  // Drag-to-pan: only engages when the gesture starts on empty canvas (not on a node),
-  // so it never fights with node dragging or the deselect-click handler.
-  let panOffset = { x: 0, y: 0 };
-  let panStart = null;
+  // TODO 3: zoom in/out (wheel, pinch, drag-to-pan, and +/- buttons), replacing the old
+  // manual drag-to-pan. Excludes gestures starting on a node circle so it never fights with
+  // node dragging or the deselect-click handler.
+  const zoom = d3.zoom()
+    .scaleExtent([0.2, 8])
+    .filter(event => event.target.tagName !== "circle")
+    .on("zoom", event => {
+      panGroup.attr("transform", event.transform);
+    });
 
-  svg.call(
-    d3.drag()
-      .filter(event => event.target.tagName !== "circle")
-      .on("start", event => {
-        panStart = { x: panOffset.x, y: panOffset.y, px: event.x, py: event.y };
-      })
-      .on("drag", event => {
-        panOffset.x = panStart.x + (event.x - panStart.px);
-        panOffset.y = panStart.y + (event.y - panStart.py);
-        panGroup.attr("transform", `translate(${panOffset.x},${panOffset.y})`);
-      })
-  );
+  svg.call(zoom);
 
   // ---------------------------------------------------------------------------
   // 4. CHART DECORATIONS (TITLES & LEGEND)
@@ -342,10 +407,14 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   // Render comparative horizontal bar charts inside side panel.
   // `active` = false renders a "ghost" style for modules the current node cutoff hasn't
   // revealed yet: gray label text, and hollow (stroke-only, no fill) bars.
-  function drawBarChart(container, barData, chartTitle, active = true) {
+  // `isNodeChart` = true marks this as the "Top nodes by flow" chart specifically, wiring up
+  // the two-way hover link with the graph's top-10 nodes (TODO 2). Only meaningful when
+  // `active` is also true, since ghost-module bars have no corresponding node in the graph.
+  function drawBarChart(container, barData, chartTitle, active = true, isNodeChart = false) {
     const labelWidth = 150, valueWidth = 36, barWidth = 100, barHeight = 8, barGap = 4;
     const xScale = d3.scaleLinear().domain([0, d3.max(barData, d => d.value) || 1]).range([0, barWidth]);
     const textColor = active ? "#fff" : "#777";
+    const linkNodes = active && isNodeChart;
 
     container.append("div").style("font-weight", "bold").style("margin-top", "10px").style("color", textColor).text(chartTitle);
 
@@ -358,23 +427,44 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
       .join("g")
       .attr("transform", (_, i) => `translate(0, ${i * (barHeight + barGap)})`);
 
+    if (linkNodes) {
+      rows.style("cursor", "pointer");
+      // Whole-row hover (label + bar + value) drives the node<->bar cross-highlight.
+      rows
+        .on("mouseover", (event, d) => {
+          tooltip.style("opacity", 1).html(`${d.label}: ${d.value.toLocaleString()}`);
+          legend.select("rect")
+            .attr("stroke", ld => ld === d.org_typ ? NEON_COLOR : null)
+            .attr("stroke-width", ld => ld === d.org_typ ? 2 : null);
+          if (d.id != null) { HOVERED_NODE_ID = d.id; updateNodeHover(); }
+        })
+        .on("mousemove", event => tooltip.style("left", `${event.pageX + 12}px`).style("top", `${event.pageY - 20}px`))
+        .on("mouseout", (event, d) => {
+          tooltip.style("opacity", 0);
+          legend.select("rect").attr("stroke", null).attr("stroke-width", null);
+          if (d.id != null) { HOVERED_NODE_ID = null; updateNodeHover(); }
+        });
+      rows.each(function (d) { if (d.id != null) topNodeBarRowsById.set(d.id, d3.select(this)); });
+    } else {
+      rows
+        .on("mouseover", (event, d) => {
+          tooltip.style("opacity", 1).html(`${d.label}: ${d.value.toLocaleString()}`);
+          legend.select("rect")
+            .attr("stroke", ld => ld === d.org_typ ? NEON_COLOR : null)
+            .attr("stroke-width", ld => ld === d.org_typ ? 2 : null);
+        })
+        .on("mousemove", event => tooltip.style("left", `${event.pageX + 12}px`).style("top", `${event.pageY - 20}px`))
+        .on("mouseout", () => {
+          tooltip.style("opacity", 0);
+          legend.select("rect").attr("stroke", null).attr("stroke-width", null);
+        });
+    }
+
     rows.append("text")
       .attr("x", labelWidth - 6).attr("y", barHeight / 2).attr("dy", "0.35em")
       .attr("text-anchor", "end").attr("font-family", FONT_FAMILY).attr("font-size", 10)
       .attr("fill", textColor)
-      .text(d => d.label.length > 28 ? d.label.slice(0, 27) + "…" : d.label)
-      .on("mouseover", (event, d) => {
-        tooltip.style("opacity", 1).html(`${d.label}: ${d.value.toLocaleString()}`);
-        // Outline the matching org_typ key in the legend (same convention as node hover).
-        legend.select("rect")
-          .attr("stroke", ld => ld === d.org_typ ? NEON_COLOR : null)
-          .attr("stroke-width", ld => ld === d.org_typ ? 2 : null);
-      })
-      .on("mousemove", event => tooltip.style("left", `${event.pageX + 12}px`).style("top", `${event.pageY - 20}px`))
-      .on("mouseout", () => {
-        tooltip.style("opacity", 0);
-        legend.select("rect").attr("stroke", null).attr("stroke-width", null);
-      });
+      .text(d => d.label.length > 28 ? d.label.slice(0, 27) + "…" : d.label);
 
     rows.append("rect")
       .attr("x", labelWidth).attr("width", d => xScale(d.value))
@@ -396,6 +486,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   function updatePanelAll() {
     panel.html("");
     allBillRows = [];
+    topNodeBarRowsById = new Map();
 
     allModuleIds.forEach(module_id => {
       const isActive = activeModuleSet.has(module_id);
@@ -432,13 +523,13 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
         const nodeBarData = [...moduleNodes]
           .sort((a, b) => b.flow - a.flow)
           .slice(0, 10)
-          .map(d => ({ label: d.name, value: d.flow, org_typ: d.org_typ }));
+          .map(d => ({ label: d.name, value: d.flow, org_typ: d.org_typ, id: d.id }));
 
         const orgFlow = d3.rollup(moduleNodes, v => d3.sum(v, d => d.flow), d => d.org_typ);
         const orgBarData = [...orgFlow.entries()].map(([org, flow]) => ({ label: org, value: flow, org_typ: org }));
 
-        drawBarChart(panel, nodeBarData, "Top nodes by flow", true);
-        drawBarChart(panel, orgBarData, "Organizations by flow", true);
+        drawBarChart(panel, nodeBarData, "Top nodes by flow", true, true);
+        drawBarChart(panel, orgBarData, "Organizations by flow", true, false);
         drawBillFreqList(panel, getModuleBillFrequency(module_id), "Top bills by frequency");
       } else {
         // Ghost preview built from the full dataset (the graph itself has no nodes for this
@@ -514,10 +605,11 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   // demote/promote that small set instead of touching every node/link in the graph.
   let promotedLinks = [];
   let promotedNodes = [];
+  let promotedLabels = [];
 
   // Apply visual styling across graph based on primary/secondary node selection, or bill selection
   function updateStyles() {
-    const adjacentNodeIds = new Set();
+    adjacentNodeIds = new Set();
     const adjacentEdges = new Set();
 
     if (PRIMARY_NODE) {
@@ -546,11 +638,12 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
     // 1. Demote only what was promoted last time (cheap) instead of touching the whole graph
     promotedLinks.forEach(el => linkGroup.node().appendChild(el));
     promotedNodes.forEach(el => nodeGroup.node().appendChild(el));
+    promotedLabels.forEach(el => nodeGroup.node().appendChild(el));
 
     // 2. Apply styling attributes
     node
-      .attr("stroke", d => (d === PRIMARY_NODE || d === SECONDARY_NODE || adjacentNodeIds.has(d.id)) ? NEON_COLOR : baseStroke(d))
-      .attr("stroke-width", d => (d === PRIMARY_NODE || d === SECONDARY_NODE) ? baseStrokeWidth(d) + 4 : baseStrokeWidth(d))
+      .attr("stroke", nodeStrokeColor)
+      .attr("stroke-width", nodeStrokeWidth)
       .style("opacity", d => SELECTED_BILL_ID ? (billNodeIds.has(d.id) ? 1 : 0.8) : 1);
 
     link
@@ -568,16 +661,22 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
       sel.style("background", d => d.B_ID === SELECTED_BILL_ID ? "rgba(204,255,0,0.15)" : null);
     });
 
-    // 3. Promote active selection to top layer. Edges go up first, then their nodes — later
-    // in document order paints on top, so nodes stay visible over neon bill-selected edges.
+    // 3. Promote active selection to top layer. Edges go up first, then their nodes, then
+    // their labels — later in document order paints on top, so nodes (and their initials)
+    // stay visible over neon bill-selected edges.
     const toPromoteLinks = link.filter(d => d === SELECTED_EDGE || billEdges.has(d));
     const toPromoteNodes = node.filter(d => d === PRIMARY_NODE || d === SECONDARY_NODE || billNodeIds.has(d.id));
 
     toPromoteLinks.each(function() { topLayer.node().appendChild(this); });
     toPromoteNodes.each(function() { topLayer.node().appendChild(this); });
+    const toPromoteLabelEls = toPromoteNodes.data()
+      .map(d => labelById.get(d.id))
+      .filter(Boolean);
+    toPromoteLabelEls.forEach(el => topLayer.node().appendChild(el));
 
     promotedLinks = toPromoteLinks.nodes();
     promotedNodes = toPromoteNodes.nodes();
+    promotedLabels = toPromoteLabelEls;
 
     updateBillBox();
     updateHullStyles();
@@ -674,6 +773,38 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   }
 
   // ---------------------------------------------------------------------------
+  // 7b. ZOOM CONTROL BUTTONS (+ / − / reset), floating over the bottom-left of the svg
+  // ---------------------------------------------------------------------------
+  const zoomControls = d3.create("div")
+    .attr("class", "zoom-controls")
+    .style("position", "absolute")
+    .style("left", "10px")
+    .style("bottom", "10px")
+    .style("display", "flex")
+    .style("flex-direction", "column")
+    .style("gap", "4px")
+    .style("z-index", 10);
+
+  function zoomBtn(label, title) {
+    return zoomControls.append("button")
+      .attr("title", title)
+      .style("width", "26px").style("height", "26px")
+      .style("border", "1px solid #555").style("border-radius", "4px")
+      .style("background", "#2b2b2b").style("color", "#fff")
+      .style("font-family", FONT_FAMILY).style("font-size", "14px").style("font-weight", "bold")
+      .style("line-height", "1").style("cursor", "pointer")
+      .text(label);
+  }
+
+  const zoomInBtn = zoomBtn("+", "Zoom in");
+  const zoomOutBtn = zoomBtn("–", "Zoom out");
+  const zoomResetBtn = zoomBtn("⟲", "Reset zoom");
+
+  zoomInBtn.on("click", () => svg.transition().duration(200).call(zoom.scaleBy, 1.3));
+  zoomOutBtn.on("click", () => svg.transition().duration(200).call(zoom.scaleBy, 1 / 1.3));
+  zoomResetBtn.on("click", () => svg.transition().duration(200).call(zoom.transform, d3.zoomIdentity));
+
+  // ---------------------------------------------------------------------------
   // 8. SIMULATION & DRAG BEHAVIORS
   // ---------------------------------------------------------------------------
   const simulation = d3.forceSimulation(nodes)
@@ -688,6 +819,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
     link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
         .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
     node.attr("cx", d => d.x).attr("cy", d => d.y);
+    nodeLabels.attr("x", d => d.x).attr("y", d => d.y);
 
     const circleData = [...d3.group(nodes, d => d.module_id)].map(([module_id, groupNodes]) => {
       const cx = d3.mean(groupNodes, d => d.x);
@@ -735,6 +867,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   container.node().appendChild(svg.node());
   container.node().appendChild(panel.node());
   container.node().appendChild(billBox.node());
+  container.node().appendChild(zoomControls.node());
 
   return container.node();
 }
