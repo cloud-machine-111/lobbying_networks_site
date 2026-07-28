@@ -9,15 +9,19 @@ import Layout from "../layouts/Layout.astro";
 <Layout>
   <div class="params">
 
-<label for="yr_input"><b>Year: </b></label>
-<input 
-  type="number" 
-  id="yr_input" 
-  name="year" 
-  min="2000" 
-  max="2021" 
-  value="2011"
->
+    <span id = "year_group">
+      <label for="yr_input"><b>Year: </b></label>
+      <input 
+        type="number" 
+        id="yr_input" 
+        name="year" 
+        min="2000" 
+        max="2021" 
+        value="2011"
+      >
+  </span>
+
+  &nbsp; &nbsp;
 
   <b>Spending: </b> &nbsp;
   <select id="log">
@@ -65,10 +69,16 @@ import Layout from "../layouts/Layout.astro";
   
 </div>
 
+  <br>
   <div id="chart-container"></div>
+  <br>
+  <button id="screenshot-btn" type="button"> Download chart </button>
+
+  <button id="batch-btn" type="button">Run all screenshots</button>
+
 
   <script type="module">
-    // import type { $brand } from "astro:schema";
+    /////// EXPLORER WINDOW /////
     import define from "../scripts/index.js";
     import { Runtime, Library, Inspector } from "../scripts/runtime.js";
 
@@ -118,6 +128,107 @@ import Layout from "../layouts/Layout.astro";
     main.redefine("DATASET_PATH", buildDatasetPath());
   });
 });
+
+////// SCREENSHOTTING //////
+import { toPng } from "https://esm.sh/html-to-image@1.11.11";
+
+document.getElementById("screenshot-btn").addEventListener("click", async () => {
+  const node = document.getElementById("chart-container");
+  try {
+    const dataUrl = await toPng(node, {
+      backgroundColor: "#000", // matches dark chart background
+      pixelRatio: 2            // sharper output on retina screens
+    });
+
+    const link = document.createElement("a");
+    let filepath = `chart${buildDatasetPath().replace("data/graph_jsons/", "").replace("titled_v2_bills_assoc_", "").replace(".json", ".png").replaceAll("/", "_")}`
+    link.download = filepath;
+    link.href = dataUrl;
+    link.click();
+  } catch (err) {
+    console.error("Screenshot failed:", err);
+  }
+});
+
+////// downloadin 
+// import { toPng } from "https://esm.sh/html-to-image@1.11.11";
+
+const AGENCIES = [
+  "Environmental_Protection_Agency",
+  "US_Fish_&_Wildlife_Service",
+  "Forest_Service",
+  "Army_Corps_of_Engineers",
+  "National_Oceanic_&_Atmospheric_Admin",
+  "Dept_of_Energy",
+  "US_Geological_Survey",
+  "National_Park_Service",
+  "Bureau_of_Reclamation",
+  "Bureau_of_Land_Management",
+  "Nuclear_Regulatory_Commission",
+  "x_agy"
+];
+const WEIGHT_TYPES = ["base"];//, "bill", "agy_bill", "agy"];
+const LOG_OPTIONS = ["logged", "unlogged"];
+
+function setSelect(id, value) {
+  const el = document.getElementById(id);
+  el.value = value;
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function screenshotCurrentChart(filename) {
+  const node = document.getElementById("chart-container");
+  const dataUrl = await toPng(node, { backgroundColor: "#000", pixelRatio: 2 });
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = dataUrl;
+  link.click();
+}
+
+async function runBatchScreenshots({ dryRun = false, settleMs = 3200, verbose = true } = {}) {
+  setSelect("time_frame", "aggregate");
+
+  let count = 0;
+  for (const agency of AGENCIES) {
+    for (const weightType of WEIGHT_TYPES) {
+      for (const log of LOG_OPTIONS) {
+        count++;
+        const label = `${agency} | ${weightType} | ${log}`;
+
+        if (dryRun) {
+          console.log(`[dry run ${count}]`, label);
+          continue; // skip the actual work, just print what would happen
+        }
+
+        if (verbose) console.log(`[${count}] setting`, label);
+        setSelect("agency", agency);
+        setSelect("weight_type", weightType);
+        setSelect("log", log);
+
+        await sleep(settleMs); // let the fetch + redraw finish
+
+        const filename = `chart_${agency}_${weightType}_${log}.png`;
+        if (verbose) console.log(`[${count}] screenshotting ->`, filename);
+
+        try {
+          await screenshotCurrentChart(filename);
+        } catch (err) {
+          console.error(`[${count}] FAILED on`, label, err);
+        }
+      }
+    }
+  }
+
+  console.log(`Done. ${count} configurations processed.`);
+}
+
+document.getElementById("batch-btn").addEventListener("click", () =>
+  runBatchScreenshots({ dryRun: false })
+);
 
   </script>
 </Layout>

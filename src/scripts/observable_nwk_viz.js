@@ -19,12 +19,8 @@ function _data(DATASET_PATH) {
   return promise;
 }
 
-// function _data(DATASET_PATH){
-//   return fetch(DATASET_PATH).then(r => r.json());
-// }
-
 function _NODES_SHOWN(Inputs){return(
-Inputs.range([1, 400], {value: 80, step: 1, label: "Nodes shown"})
+Inputs.range([1, 400], {value: 100, step: 1, label: "Nodes shown"})
 )}
 
 function _chart(d3,data,NODES_SHOWN,invalidation)
@@ -32,7 +28,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   // ---------------------------------------------------------------------------
   // 1. CONFIGURATION & STATE MANAGEMENT
   // ---------------------------------------------------------------------------
-  const width = 828, height = 628;
+  const width = 728, height = 828;
   const NEON_COLOR = "#ccff00";
   const FONT_FAMILY = "'Helvetica', Sans-serif";
 
@@ -44,8 +40,8 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   let HOVERED_NODE_ID = null;    // node id currently hovered (via node itself OR its bar row)
   let adjacentNodeIds = new Set(); // recomputed by updateStyles, read by nodeStrokeColor/Width
 
-  let FORCE_XY = .4;
-  let FORCE_MANY_BODY = -200;
+  let FORCE_XY = .5;
+  let FORCE_MANY_BODY = -350;
 
   // 1. Define your exact type-to-color mapping
   const orgColorMap = {
@@ -140,7 +136,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
 
   const panel = d3.create("div")
     .attr("class", "info-panel")
-    .style("width", "330px")
+    .style("width", "400px")
     .style("padding", "8px")
     // .style("font-family", "sans-serif")
     .style("font-family", FONT_FAMILY)
@@ -249,7 +245,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
     .attr("font-family", FONT_FAMILY)
     .attr("font-weight", "bold")
     .attr("font-size", d => Math.max(8, Math.min(11, radius(d.flow) * 0.75)))
-    .attr("fill", "rgb(53, 58, 16)")
+    .attr("fill", "#262f16")
     // .attr("stroke", "#fff")
     // .attr("stroke-width", 1)
     .attr("paint-order", "stroke fill")
@@ -324,7 +320,9 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
       .style("font-style", "italic")
       .style("font-weight", "normal")
       .attr("font-size", 13)
-      .text(`${data.metadata.log} on spending`);
+      // .text(`${data.metadata.log} on spending`);
+      .text(`${data.metadata.log == "true" ? "log" : "no log"} on spending - `);
+      
   
   svg.append("text")
     .attr("x", -width / 2 + 20).attr("y", -height / 2 + 40)
@@ -383,7 +381,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
       .style("display", "flex").style("justify-content", "space-between").style("font-size", "10px")
       .style("padding", "2px 0").style("border-bottom", "1px solid #333")
       .style("cursor", "pointer")
-      .html(d => `<span>${d.title.length > 45 ? d.title.slice(0, 44) + "…" : d.title}</span><span style="margin-left:6px;">${d.count}</span>`)
+      .html(d => `<span>${d.title.length > 65 ? d.title.slice(0, 64) + "…" : d.title}</span><span style="margin-left:6px;">${d.count}</span>`)
       .on("mouseover", (event, d) => {
         tooltip.style("opacity", 1).html(`${d.title} (${d.B_ID}): ${d.count} edge(s)`);
         // Turn every visible edge carrying this bill neon yellow, without touching opacity.
@@ -808,7 +806,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   // 8. SIMULATION & DRAG BEHAVIORS
   // ---------------------------------------------------------------------------
   const simulation = d3.forceSimulation(nodes)
-    // .alphaDecay(0.05)
+    .alphaDecay(0.05)
     .velocityDecay(0.6) // default 0.4; higher = more friction, nodes stop moving sooner
     .force("link", d3.forceLink(links).id(d => d.id))
     .force("charge", d3.forceManyBody().strength(FORCE_MANY_BODY))
@@ -871,7 +869,6 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
 
   return container.node();
 }
-
 
 function _selectedModule(){return(
 null
