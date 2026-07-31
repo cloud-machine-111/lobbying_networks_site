@@ -28,7 +28,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   // ---------------------------------------------------------------------------
   // 1. CONFIGURATION & STATE MANAGEMENT
   // ---------------------------------------------------------------------------
-  const width = 728, height = 1028;
+  const width = 728, height = 728;
   const NEON_COLOR = "#ccff00";
   const FONT_FAMILY = "'Helvetica', Sans-serif";
 
@@ -136,7 +136,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
 
   const panel = d3.create("div")
     .attr("class", "info-panel")
-    .style("width", "400px")
+    .style("width", "360px")
     .style("padding", "8px")
     // .style("font-family", "sans-serif")
     .style("font-family", FONT_FAMILY)
@@ -145,7 +145,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
     .style("overflow-y", "auto")
     .style("max-height", `${height}px`)
     .style("background", "#232323")
-    .style("color", "#fff");
+    .style("color", "#fff")
 
   const tooltip = d3.select("body").append("div")
     .attr("class", "node-tooltip")
@@ -154,7 +154,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
     .style("background", "white")
     .style("border", "1px solid #ccc")
     .style("border-radius", "4px")
-    .style("padding", "4px 8px")
+    .style("padding", "4px 8px") 
     .style("font-family", FONT_FAMILY)
     // .style("font-family", "sans-serif")
     .style("font-size", "12px")
@@ -860,6 +860,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   const container = d3.create("div")
     .style("display", "flex")
     .style("flex-direction", "row")
+    .style("width", "fit-content")
     .style("position", "relative")
     .style("background", "#000");
 
