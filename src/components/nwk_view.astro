@@ -1,19 +1,51 @@
-<div id="hero-network" class="hero-network"></div>
+---
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+
+interface Props {
+  path?: string | null;
+}
+
+const { path: explicitPath = null } = Astro.props;
+
+const dirRel = "data/graph_jsons/annual/per_agency";
+
+// When no explicit path is given, list the hardcoded directory at build time
+// so the client can pick a random graph from it on each page load.
+let fallbackPaths: string[] = [];
+if (!explicitPath) {
+  const dirAbs = fileURLToPath(new URL(`../../public/${dirRel}`, import.meta.url));
+  fallbackPaths = fs.readdirSync(dirAbs)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => `${dirRel}/${f}`);
+}
+---
+
+<div
+  id="hero-network"
+  class="hero-network"
+  data-path={explicitPath}
+  data-fallback-paths={JSON.stringify(fallbackPaths)}
+></div>
 
 <script>
   // @ts-nocheck -- d3-force mutates plain node objects with x/y at runtime, which TS can't model here.
   import * as d3 from "d3";
+  import { colors } from "../styles/colors.js";
 
-  // Two disconnected modules, 7 nodes total: a quick visual motif, not a real dataset.
-  const nodes = [
-    { id: "a1", group: 0 }, { id: "a2", group: 0 }, { id: "a3", group: 0 }, { id: "a4", group: 0 },
-    { id: "b1", group: 1 }, { id: "b2", group: 1 }, { id: "b3", group: 1 },
-  ];
-  const links = [
-    { source: "a1", target: "a2" }, { source: "a1", target: "a3" }, { source: "a2", target: "a4" },
-    { source: "b1", target: "b2" }, { source: "b2", target: "b3" },
-  ];
-  const color = d3.scaleOrdinal(["#c0392b", "#2c6e49"]);
+  const container = document.getElementById("hero-network");
+  const fallbackPaths = JSON.parse(container.dataset.fallbackPaths || "[]");
+  const path = container.dataset.path || fallbackPaths[Math.floor(Math.random() * fallbackPaths.length)];
+
+  const data = await fetch(path).then(r => {
+    if (!r.ok) throw new Error(`Failed to fetch ${path}: ${r.status}`);
+    return r.json();
+  });
+
+  const nodes = [...data.nodes].sort((a, b) => b.flow - a.flow).slice(0, 20)
+  const links = [...data.links]
+
+  const color = d3.scaleOrdinal([colors.accentRed, colors.accentGreen]);
 
   const width = 260, height = 200;
   const svg = d3.select("#hero-network").append("svg")
@@ -21,13 +53,13 @@
     .attr("preserveAspectRatio", "xMidYMid meet")
     .style("width", "100%").style("height", "auto");
 
-  const link = svg.append("g").attr("stroke", "#999").attr("stroke-opacity", 0.6)
+  const link = svg.append("g").attr("stroke", colors.linkStroke).attr("stroke-opacity", 0.6)
     .selectAll("line").data(links).join("line");
 
-  const node = svg.append("g").attr("stroke", "#000").attr("stroke-width", 0.5)
+  const node = svg.append("g").attr("stroke", colors.nodeStroke).attr("stroke-width", 0.5)
     .selectAll("circle").data(nodes).join("circle")
     .attr("r", 8)
-    .attr("fill", d => color(d.group));
+    .attr("fill", d => color(d.group))
 
   d3.forceSimulation(nodes)
     .force("link", d3.forceLink(links).id(d => d.id).distance(45))
