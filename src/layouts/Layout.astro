@@ -20,28 +20,48 @@ import { colors } from "../styles/colors";
 
 <style is:global define:vars={colors}>
 	html {
-		
+		h1 {
+			@media (max-width: 600px) {
+				font-size: 2em;
+			}
+		}
+
+		p {
+			@media (max-width: 600px) {
+				font-size: .9em;
+			}
+		}
+
+		.hero {
+			@media (max-width: 1000px) {
+				width: 80vw;
+			}
+		}
 	}
-	
+
 	.hero {
 		height: 50vh;
 		width: 60vw;
 		display: flex;
 		/* align-items: center; */
-		justify-content: center;
+		justify-content: top;
 		flex-direction: column;
-		margin: 20vh 50px;
+		margin: 10vh 50px;
 
 		h1 {
 			font-size: 3em;
 			color: var(--accentBrown);
+
+			@media (max-width: 600px) {
+				font-size: 2em;
+			}
 		}
 
 		.content {
 			display: flex;
 			flex-direction: row;
 			align-items: center;
-			gap: 1em;
+			gap: 2em;
 		}
 
 		.hero-network {
@@ -53,6 +73,7 @@ import { colors } from "../styles/colors";
 
 		.button {
 			border: var(--nodeStroke) solid 0.5px;
+			margin: 5% 5% 0px 0px;
 			padding: 15px 32px;
 			text-align: center;
 			text-decoration: none;
@@ -60,12 +81,12 @@ import { colors } from "../styles/colors";
 			font-size: 16px;
 			cursor: pointer;
 			color: var(--accentBrown);
+		}
 
-			a:hover {
-				font-weight: bold;
-
-			}
-
+		.button:hover {
+			border-width: 1px;
+			padding: 14.5px 30px;
+			font-weight: bold;
 		}
 	}
 

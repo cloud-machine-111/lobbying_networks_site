@@ -43,7 +43,7 @@ if (!explicitPath) {
   });
 
   const nodes = [...data.nodes].sort((a, b) => b.flow - a.flow).slice(0, 20)
-  const links = [...data.links]
+  const links = [...data.links].filter(l => nodes.has(idOf(l.source)) && nodes.has(idOf(l.target))).map(d => ({ ...d }));
 
   const color = d3.scaleOrdinal([colors.accentRed, colors.accentGreen]);
 
