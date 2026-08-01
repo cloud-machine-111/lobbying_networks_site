@@ -1,5 +1,5 @@
 ## Social Networks in Environmental Lobbing
-[Explore!](https://cloud-machine-111.github.io/lobbying_networks_site/)
+[Click me to explore!](https://cloud-machine-111.github.io/lobbying_networks_site/)
 
 ## Todo:
 - make UX less soulless
