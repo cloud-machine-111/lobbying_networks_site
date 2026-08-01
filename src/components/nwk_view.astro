@@ -1,5 +1,4 @@
-cool nwk viz we're workin on it
-<!-- ---
+---
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -43,8 +42,12 @@ if (!explicitPath) {
     return r.json();
   });
 
-  const nodes = [...data.nodes].sort((a, b) => b.flow - a.flow).slice(0, 20)
-  const links = [...data.links].filter(l => nodes.has(idOf(l.source)) && nodes.has(idOf(l.target))).map(d => ({ ...d }));
+const nodes = [...data.nodes].sort((a, b) => b.flow - a.flow).slice(0, 20);
+const nodeIds = new Set(nodes.map(n => n.id)); // adjust `.id` to whatever your id field is called
+
+const links = [...data.links]
+    .filter(l => nodeIds.has(l.source) && nodeIds.has(l.target))
+    .map(d => ({ ...d })); // shallow copy
 
   const color = d3.scaleOrdinal([colors.accentRed, colors.accentGreen]);
 
@@ -72,4 +75,4 @@ if (!explicitPath) {
           .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
       node.attr("cx", d => d.x).attr("cy", d => d.y);
     });
-</script> -->
+</script>
