@@ -8,93 +8,86 @@ import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 ---
 
 <Layout>
-  <div class="params">
+  <div class="explorer">
+    <h1>Explore</h1>
+    <div class="params">
+      <span id="year_group">
+        <label for="yr_input"><b>Year: </b></label>
+        <input
+          type="number"
+          id="yr_input"
+          name="year"
+          min="2000"
+          max="2021"
+          value="2011"
+        />
+      </span>
 
-    <span id = "year_group">
-      <label for="yr_input"><b>Year: </b></label>
-      <input 
-        type="number" 
-        id="yr_input" 
-        name="year" 
-        min="2000" 
-        max="2021" 
-        value="2011"
-      >
-  </span>
+      &nbsp; &nbsp;
 
-  &nbsp; &nbsp;
+      <b>Spending: </b> &nbsp;
+      <select id="log">
+        <option value="logged">log(spending)</option>
+        <option value="unlogged">plain spending</option>
+      </select>
 
-  <b>Spending: </b> &nbsp;
-  <select id="log">
-    <option value="logged">log(spending)</option>
-    <option value="unlogged">plain spending</option>
-  </select>
+      &nbsp; &nbsp;
 
-  &nbsp; &nbsp;
+      <b>Time frame: </b> &nbsp;
+      <select id="time_frame">
+        <option value="annual">annual</option>
+        <option value="aggregate">aggregate</option>
+      </select>
 
-  <b>Time frame: </b> &nbsp;
-  <select id="time_frame">
-    <option value="annual">annual</option>
-    <option value="aggregate">aggregate</option>
-  </select>
+      &nbsp;&nbsp;
 
-  &nbsp;&nbsp;
+      <b>Agency: </b> &nbsp;
+      <select id="agency">
+        {AGENCIES.map((a) => <option value={a.value}>{a.label}</option>)}
+        <option value={ALL_AGENCIES_VALUE}>All agencies</option>
+      </select>
 
-  <b>Agency: </b> &nbsp;
-  <select id="agency">
-    {AGENCIES.map((a) => <option value={a.value}>{a.label}</option>)}
-    <option value={ALL_AGENCIES_VALUE}>All agencies</option>
-  </select>
+      &nbsp;&nbsp;
 
-  &nbsp;&nbsp;
+      <b>Weight type: </b> &nbsp;
+      <select id="weight_type">
+        <option value="base">base</option>
+        <option value="bill">bill</option>
+        <option value="agy_bill">agency-bill</option>
+        <option value="agy">agency</option>
+      </select>
 
-  <b>Weight type: </b> &nbsp;
-  <select id="weight_type">
-    <option value="base">base</option>
-    <option value="bill">bill</option>
-    <option value="agy_bill">agency-bill</option>
-    <option value="agy">agency</option>
-  </select>
+      <div id="slider-container"></div>
+    </div>
 
-  <div id="slider-container"></div>
-  
-</div>
+    <br />
 
-  <br>
+    <div id="chart-container" class="chart-container"></div>
 
-  <div id="chart-container" class="chart-container"></div>
-  
-  <br>
-  <button id="screenshot-btn" type="button"> Download chart </button>
+    <br />
+    <button id="screenshot-btn" type="button"> Download chart </button>
 
-  <button id="batch-btn" type="button">Run all screenshots</button>
+    <button id="batch-btn" type="button">Run all screenshots</button>
 
+    <script type="module">
+      /////// EXPLORER WINDOW /////
+      import define from "../scripts/index.js";
+      import { Runtime, Library, Inspector } from "../scripts/runtime.js";
+      import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 
-  <script type="module">
-    /////// EXPLORER WINDOW /////
-    import define from "../scripts/index.js";
-    import { Runtime, Library, Inspector } from "../scripts/runtime.js";
-    import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
+      const runtime = new Runtime();
+      // runtime.module = method that calls a function (within Observable runtime) & parameterizes it.
+      const main = runtime.module(define, (name) => {
+        if (name === "chart")
+          return new Inspector(document.getElementById("chart-container")); // gets empty div, push cell value into div.
 
-    const runtime = new Runtime();
-    // runtime.module = method that calls a function (within Observable runtime) & parameterizes it.
-    const main = runtime.module(define, (name) => {
-      if (name === "chart")
-        return new Inspector(document.getElementById("chart-container")); // gets empty div, push cell value into div.
+        if (name === "viewof NODES_SHOWN")
+          return new Inspector(document.getElementById("slider-container"));
+        return null; // suppresses printouts.
+      });
 
-      if (name === "viewof NODES_SHOWN")
-        return new Inspector(document.getElementById("slider-container"));
-      return null; // suppresses printouts.
-    });
-
-    // Add a new cell from outside observable_nwk_viz.js, using the returned `main`
-    main
-      .variable(null)
-      .define(
-        "DATASET_PATH",
-        [],
-        () => buildDatasetPath()
-      );
+      // Add a new cell from outside observable_nwk_viz.js, using the returned `main`
+      main.variable(null).define("DATASET_PATH", [], () => buildDatasetPath());
 
       function buildDatasetPath() {
         const log = document.getElementById("log").value;
@@ -110,113 +103,132 @@ import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
         } else {
           // graph_jsons/annual/per_agency/titled_v2_bills_assoc_Army_Corps_of_Engineers_agy_2000_logged.json
           let agy_folder_str = "per_agency";
-          if (agency == "x_agy") {agy_folder_str = "x_agy"}
-          path =  `/data/graph_jsons/annual/${agy_folder_str}/titled_v2_bills_assoc_${agency}_${weightType}_${yr}_${log}.json`
+          if (agency == "x_agy") {
+            agy_folder_str = "x_agy";
+          }
+          path = `/data/graph_jsons/annual/${agy_folder_str}/titled_v2_bills_assoc_${agency}_${weightType}_${yr}_${log}.json`;
         }
         console.log(path);
         return path;
       }
 
-  ["log", "time_frame", "agency", "weight_type", "yr_input"].forEach(id => {
-  document.getElementById(id).addEventListener("change", () => {
-    main.redefine("DATASET_PATH", buildDatasetPath());
-  });
-});
+      ["log", "time_frame", "agency", "weight_type", "yr_input"].forEach(
+        (id) => {
+          document.getElementById(id).addEventListener("change", () => {
+            main.redefine("DATASET_PATH", buildDatasetPath());
+          });
+        },
+      );
 
-////// SCREENSHOTTING //////
-import { toPng } from "https://esm.sh/html-to-image@1.11.11";
+      ////// SCREENSHOTTING //////
+      import { toPng } from "https://esm.sh/html-to-image@1.11.11";
 
-document.getElementById("screenshot-btn").addEventListener("click", async () => {
-  const node = document.getElementById("chart-container");
-  try {
-    const dataUrl = await toPng(node, {
-      backgroundColor: "#000", // matches dark chart background
-      pixelRatio: 2            // sharper output on retina screens
-    });
+      document
+        .getElementById("screenshot-btn")
+        .addEventListener("click", async () => {
+          const node = document.getElementById("chart-container");
+          try {
+            const dataUrl = await toPng(node, {
+              backgroundColor: "#000", // matches dark chart background
+              pixelRatio: 2, // sharper output on retina screens
+            });
 
-    const link = document.createElement("a");
-    let filepath = `chart${buildDatasetPath().replace("data/graph_jsons/", "").replace("titled_v2_bills_assoc_", "").replace(".json", ".png").replaceAll("/", "_")}`
-    link.download = filepath;
-    link.href = dataUrl;
-    link.click();
-  } catch (err) {
-    console.error("Screenshot failed:", err);
-  }
-});
+            const link = document.createElement("a");
+            let filepath = `chart${buildDatasetPath().replace("data/graph_jsons/", "").replace("titled_v2_bills_assoc_", "").replace(".json", ".png").replaceAll("/", "_")}`;
+            link.download = filepath;
+            link.href = dataUrl;
+            link.click();
+          } catch (err) {
+            console.error("Screenshot failed:", err);
+          }
+        });
 
-////// downloadin 
-// import { toPng } from "https://esm.sh/html-to-image@1.11.11";
+      ////// downloadin
+      // import { toPng } from "https://esm.sh/html-to-image@1.11.11";
 
-const AGENCY_VALUES = [...AGENCIES.map((a) => a.value), ALL_AGENCIES_VALUE];
-const WEIGHT_TYPES = ["agy"];//["base", "bill", "agy_bill", "agy"];
-const LOG_OPTIONS = ["logged", "unlogged"];
+      const AGENCY_VALUES = [
+        ...AGENCIES.map((a) => a.value),
+        ALL_AGENCIES_VALUE,
+      ];
+      const WEIGHT_TYPES = ["agy"]; //["base", "bill", "agy_bill", "agy"];
+      const LOG_OPTIONS = ["logged", "unlogged"];
 
-function setSelect(id, value) {
-  const el = document.getElementById(id);
-  el.value = value;
-  el.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function screenshotCurrentChart(filename) {
-  const node = document.getElementById("chart-container");
-  const dataUrl = await toPng(node, { backgroundColor: "#000", pixelRatio: 2 });
-  const link = document.createElement("a");
-  link.download = filename;
-  link.href = dataUrl;
-  link.click();
-}
-
-async function runBatchScreenshots({ dryRun = false, settleMs = 1200, verbose = true } = {}) {
-  setSelect("time_frame", "aggregate");
-
-  let count = 0;
-  for (const agency of AGENCY_VALUES) {
-    for (const weightType of WEIGHT_TYPES) {
-      for (const log of LOG_OPTIONS) {
-        count++;
-        const label = `${agency} | ${weightType} | ${log}`;
-
-        if (dryRun) {
-          console.log(`[dry run ${count}]`, label);
-          continue; // skip the actual work, just print what would happen
-        }
-
-        if (verbose) console.log(`[${count}] setting`, label);
-        setSelect("agency", agency);
-        setSelect("weight_type", weightType);
-        setSelect("log", log);
-
-        await sleep(settleMs); // let the fetch + redraw finish
-
-        const filename = `chart_${agency}_${weightType}_${log}.png`;
-        if (verbose) console.log(`[${count}] screenshotting ->`, filename);
-
-        try {
-          await screenshotCurrentChart(filename);
-        } catch (err) {
-          console.error(`[${count}] FAILED on`, label, err);
-        }
+      function setSelect(id, value) {
+        const el = document.getElementById(id);
+        el.value = value;
+        el.dispatchEvent(new Event("change", { bubbles: true }));
       }
-    }
-  }
 
-  console.log(`Done. ${count} configurations processed.`);
-}
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
 
-document.getElementById("batch-btn").addEventListener("click", () =>
-  runBatchScreenshots({ dryRun: false })
-);
+      async function screenshotCurrentChart(filename) {
+        const node = document.getElementById("chart-container");
+        const dataUrl = await toPng(node, {
+          backgroundColor: "#000",
+          pixelRatio: 2,
+        });
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = dataUrl;
+        link.click();
+      }
 
-  </script>
+      async function runBatchScreenshots({
+        dryRun = false,
+        settleMs = 1200,
+        verbose = true,
+      } = {}) {
+        setSelect("time_frame", "aggregate");
 
-  <style>
-    .chart-container {
-      display: flex;
-      justify-content: center;
-    }
-  </style>
+        let count = 0;
+        for (const agency of AGENCY_VALUES) {
+          for (const weightType of WEIGHT_TYPES) {
+            for (const log of LOG_OPTIONS) {
+              count++;
+              const label = `${agency} | ${weightType} | ${log}`;
+
+              if (dryRun) {
+                console.log(`[dry run ${count}]`, label);
+                continue; // skip the actual work, just print what would happen
+              }
+
+              if (verbose) console.log(`[${count}] setting`, label);
+              setSelect("agency", agency);
+              setSelect("weight_type", weightType);
+              setSelect("log", log);
+
+              await sleep(settleMs); // let the fetch + redraw finish
+
+              const filename = `chart_${agency}_${weightType}_${log}.png`;
+              if (verbose)
+                console.log(`[${count}] screenshotting ->`, filename);
+
+              try {
+                await screenshotCurrentChart(filename);
+              } catch (err) {
+                console.error(`[${count}] FAILED on`, label, err);
+              }
+            }
+          }
+        }
+
+        console.log(`Done. ${count} configurations processed.`);
+      }
+
+      document
+        .getElementById("batch-btn")
+        .addEventListener("click", () =>
+          runBatchScreenshots({ dryRun: false }),
+        );
+    </script>
+
+    <style>
+      .chart-container {
+        display: flex;
+        justify-content: center;
+      }
+    </style>
+  </div>
 </Layout>

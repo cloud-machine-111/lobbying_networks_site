@@ -10,4 +10,5 @@ export const colors = {
   linkStroke: "#999999",
   nodeStroke: "#000000",
   accentBrown: "#342b2b",
+  neonColor: "#ccff00"
 };
