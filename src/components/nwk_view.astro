@@ -1,56 +1,54 @@
 ---
-import fs from "node:fs";
-import { fileURLToPath } from "node:url";
-import { AGENCIES } from "../scripts/agencies.js";
-
 interface Props {
   path?: string | null;
 }
 
 const { path: explicitPath = null } = Astro.props;
-
-const dirRel = "data/graph_jsons/annual/per_agency";
-
-// When no explicit path is given, list the hardcoded directory at build time so the client
-// can pick a random graph from it on each page load, restricted to the same AGENCIES list
-// explorer.astro uses — keeps the hero preview from drifting onto an agency the explorer
-// doesn't (or no longer) exposes.
-let fallbackPaths: string[] = [];
-if (!explicitPath) {
-  const dirAbs = fileURLToPath(new URL(`../../public/${dirRel}`, import.meta.url));
-  fallbackPaths = fs.readdirSync(dirAbs)
-    .filter((f) => f.endsWith(".json"))
-    .filter((f) => AGENCIES.some((a) => f.includes(a.value)))
-    .map((f) => `${dirRel}/${f}`);
-}
 ---
 
 <div
   id="hero-network"
   class="hero-network"
   data-path={explicitPath}
-  data-fallback-paths={JSON.stringify(fallbackPaths)}
 ></div>
 
 <script>
   // @ts-nocheck -- d3-force mutates plain node objects with x/y at runtime, which TS can't model here.
   import * as d3 from "d3";
   import { colors } from "../styles/colors.js";
+  import { AGENCIES } from "../scripts/agencies.js";
   import {
-    fetchGraphJSON,
+    fetchGraphJSONFromR2,
     topNodesByFlow,
     linksAmongNodes,
     orgColorMap,
     moduleColorScheme,
     moduleHullData,
     makeDragBehavior,
+    annualPerAgencyPath,
+    ANNUAL_WEIGHT_TYPES,
+    ANNUAL_YEARS,
+    LOG_OPTIONS,
   } from "../scripts/graph_utils.js";
 
-  const container = document.getElementById("hero-network");
-  const fallbackPaths = JSON.parse(container.dataset.fallbackPaths || "[]");
-  const path = container.dataset.path || fallbackPaths[Math.floor(Math.random() * fallbackPaths.length)];
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-  const data = await fetchGraphJSON(path);
+  // No explicit path given -> sample a random dataset from R2 on each page load, restricted
+  // to the same AGENCIES list explorer.astro uses (keeps the hero preview from drifting onto
+  // an agency the explorer doesn't, or no longer, expose).
+  function randomAnnualPerAgencyPath() {
+    return annualPerAgencyPath(
+      pick(AGENCIES).value,
+      pick(ANNUAL_WEIGHT_TYPES),
+      pick(ANNUAL_YEARS),
+      pick(LOG_OPTIONS),
+    );
+  }
+
+  const container = document.getElementById("hero-network");
+  const path = container.dataset.path || randomAnnualPerAgencyPath();
+
+  const data = await fetchGraphJSONFromR2(path);
 
   const nodes = topNodesByFlow(data, 20);
   const links = linksAmongNodes(data.links, nodes);
