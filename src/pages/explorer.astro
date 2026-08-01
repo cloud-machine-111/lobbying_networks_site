@@ -1,6 +1,7 @@
 ---
 import Welcome from "../components/Welcome.astro";
 import Layout from "../layouts/Layout.astro";
+import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 
 // Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
 // Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
@@ -41,18 +42,8 @@ import Layout from "../layouts/Layout.astro";
 
   <b>Agency: </b> &nbsp;
   <select id="agency">
-    <option value="Environmental_Protection_Agency">Environmental Protection Agency</option>
-    <option value="US_Fish_&_Wildlife_Service">US Fish & Wildlife_Service</option>
-    <option value="Forest_Service">Forest Service</option>
-    <option value="Army_Corps_of_Engineers">Army Corps of Engineers</option>
-    <option value="National_Oceanic_&_Atmospheric_Admin">National Oceanic & Atmospheric Admin</option>
-    <option value="Dept_of_Energy">Dept of Energy</option>
-    <option value="US_Geological_Survey">US Geological Survey</option>
-    <option value="National_Park_Service">National Park Service</option>
-    <option value="Bureau_of_Reclamation">Bureau of Reclamation</option>
-    <option value="Bureau_of_Land_Management">Bureau of Land Management</option>
-    <option value="Nuclear_Regulatory_Commission">Nuclear Regulatory Commission</option>
-    <option value="x_agy">All agencies</option>
+    {AGENCIES.map((a) => <option value={a.value}>{a.label}</option>)}
+    <option value={ALL_AGENCIES_VALUE}>All agencies</option>
   </select>
 
   &nbsp;&nbsp;
@@ -83,6 +74,7 @@ import Layout from "../layouts/Layout.astro";
     /////// EXPLORER WINDOW /////
     import define from "../scripts/index.js";
     import { Runtime, Library, Inspector } from "../scripts/runtime.js";
+    import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 
     const runtime = new Runtime();
     // runtime.module = method that calls a function (within Observable runtime) & parameterizes it.
@@ -155,20 +147,7 @@ document.getElementById("screenshot-btn").addEventListener("click", async () => 
 ////// downloadin 
 // import { toPng } from "https://esm.sh/html-to-image@1.11.11";
 
-const AGENCIES = [
-  "Environmental_Protection_Agency",
-  "US_Fish_&_Wildlife_Service",
-  "Forest_Service",
-  "Army_Corps_of_Engineers",
-  "National_Oceanic_&_Atmospheric_Admin",
-  "Dept_of_Energy",
-  "US_Geological_Survey",
-  "National_Park_Service",
-  "Bureau_of_Reclamation",
-  "Bureau_of_Land_Management",
-  "Nuclear_Regulatory_Commission",
-  "x_agy"
-];
+const AGENCY_VALUES = [...AGENCIES.map((a) => a.value), ALL_AGENCIES_VALUE];
 const WEIGHT_TYPES = ["agy"];//["base", "bill", "agy_bill", "agy"];
 const LOG_OPTIONS = ["logged", "unlogged"];
 
@@ -195,7 +174,7 @@ async function runBatchScreenshots({ dryRun = false, settleMs = 1200, verbose = 
   setSelect("time_frame", "aggregate");
 
   let count = 0;
-  for (const agency of AGENCIES) {
+  for (const agency of AGENCY_VALUES) {
     for (const weightType of WEIGHT_TYPES) {
       for (const log of LOG_OPTIONS) {
         count++;

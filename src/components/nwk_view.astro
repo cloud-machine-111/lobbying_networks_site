@@ -1,6 +1,7 @@
 ---
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { AGENCIES } from "../scripts/agencies.js";
 
 interface Props {
   path?: string | null;
@@ -10,13 +11,16 @@ const { path: explicitPath = null } = Astro.props;
 
 const dirRel = "data/graph_jsons/annual/per_agency";
 
-// When no explicit path is given, list the hardcoded directory at build time
-// so the client can pick a random graph from it on each page load.
+// When no explicit path is given, list the hardcoded directory at build time so the client
+// can pick a random graph from it on each page load, restricted to the same AGENCIES list
+// explorer.astro uses — keeps the hero preview from drifting onto an agency the explorer
+// doesn't (or no longer) exposes.
 let fallbackPaths: string[] = [];
 if (!explicitPath) {
   const dirAbs = fileURLToPath(new URL(`../../public/${dirRel}`, import.meta.url));
   fallbackPaths = fs.readdirSync(dirAbs)
     .filter((f) => f.endsWith(".json"))
+    .filter((f) => AGENCIES.some((a) => f.includes(a.value)))
     .map((f) => `${dirRel}/${f}`);
 }
 ---
@@ -32,24 +36,34 @@ if (!explicitPath) {
   // @ts-nocheck -- d3-force mutates plain node objects with x/y at runtime, which TS can't model here.
   import * as d3 from "d3";
   import { colors } from "../styles/colors.js";
+  import {
+    fetchGraphJSON,
+    topNodesByFlow,
+    linksAmongNodes,
+    orgColorMap,
+    moduleColorScheme,
+    moduleHullData,
+    makeDragBehavior,
+  } from "../scripts/graph_utils.js";
 
   const container = document.getElementById("hero-network");
   const fallbackPaths = JSON.parse(container.dataset.fallbackPaths || "[]");
   const path = container.dataset.path || fallbackPaths[Math.floor(Math.random() * fallbackPaths.length)];
 
-  const data = await fetch(path).then(r => {
-    if (!r.ok) throw new Error(`Failed to fetch ${path}: ${r.status}`);
-    return r.json();
-  });
+  const data = await fetchGraphJSON(path);
 
-const nodes = [...data.nodes].sort((a, b) => b.flow - a.flow).slice(0, 20);
-const nodeIds = new Set(nodes.map(n => n.id)); // adjust `.id` to whatever your id field is called
+  const nodes = topNodesByFlow(data, 20);
+  const links = linksAmongNodes(data.links, nodes);
 
-const links = [...data.links]
-    .filter(l => nodeIds.has(l.source) && nodeIds.has(l.target))
-    .map(d => ({ ...d })); // shallow copy
+  // Same org-type -> color mapping as the full explorer (observable_nwk_viz.js), so node
+  // colors read consistently between the hero preview and the full view.
+  const org_color = d3.scaleOrdinal()
+    .domain(Object.keys(orgColorMap))
+    .range(Object.values(orgColorMap))
+    .unknown("#cccccc");
 
-  const color = d3.scaleOrdinal([colors.accentRed, colors.accentGreen]);
+  const activeModules = [...new Set(nodes.map(d => d.module_id))];
+  const module_color = d3.scaleOrdinal(moduleColorScheme).domain(activeModules);
 
   const width = 260, height = 200;
   const svg = d3.select("#hero-network").append("svg")
@@ -57,22 +71,46 @@ const links = [...data.links]
     .attr("preserveAspectRatio", "xMidYMid meet")
     .style("width", "100%").style("height", "auto");
 
+  // Hull group is appended first so it paints behind the links/nodes.
+  const hullGroup = svg.append("g");
+
   const link = svg.append("g").attr("stroke", colors.linkStroke).attr("stroke-opacity", 0.6)
     .selectAll("line").data(links).join("line");
 
   const node = svg.append("g").attr("stroke", colors.nodeStroke).attr("stroke-width", 0.5)
     .selectAll("circle").data(nodes).join("circle")
     .attr("r", 8)
-    .attr("fill", d => color(d.group))
+    .attr("fill", d => org_color(d.org_typ))
 
-  d3.forceSimulation(nodes)
+  // Module centers arranged in a circle, same layout idea as the full explorer, scaled down
+  // for the hero preview's smaller viewBox.
+  const moduleCenters = new Map(
+    activeModules.map((m, i) => {
+      const angle = (i / activeModules.length) * 2 * Math.PI;
+      return [m, {
+        x: width / 2 + width * 0.28 * Math.cos(angle),
+        y: height / 2 + height * 0.28 * Math.sin(angle),
+      }];
+    })
+  );
+
+  const simulation = d3.forceSimulation(nodes)
     .force("link", d3.forceLink(links).id(d => d.id).distance(45))
     .force("charge", d3.forceManyBody().strength(-80))
-    .force("x", d3.forceX(d => d.group === 0 ? width * 0.28 : width * 0.72).strength(0.15))
-    .force("y", d3.forceY(height / 3).strength(0.15))
+    .force("x", d3.forceX(d => moduleCenters.get(d.module_id).x).strength(0.15))
+    .force("y", d3.forceY(d => moduleCenters.get(d.module_id).y).strength(0.15))
     .on("tick", () => {
       link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
           .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
       node.attr("cx", d => d.x).attr("cy", d => d.y);
+
+      hullGroup.selectAll("circle")
+        .data(moduleHullData(nodes, 8), d => d.module_id)
+        .join("circle")
+        .attr("cx", d => d.cx).attr("cy", d => d.cy).attr("r", d => d.r)
+        .attr("fill", d => module_color(d.module_id))
+        .attr("fill-opacity", 0.3);
     });
+
+  node.call(makeDragBehavior(d3, simulation));
 </script>

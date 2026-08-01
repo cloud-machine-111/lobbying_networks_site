@@ -1,3 +1,5 @@
+import { fetchGraphJSON, idOf, topNodesByFlow, linksAmongNodes, orgColorMap, moduleColorScheme, moduleHullData, makeDragBehavior } from "./graph_utils.js";
+
 function _1(md){return(
 md`# Lobbying Networks
 
@@ -11,10 +13,7 @@ const cache = new Map();
 function _data(DATASET_PATH) {
   if (cache.has(DATASET_PATH)) return cache.get(DATASET_PATH);
   const path = BASE_URL + DATASET_PATH.replace("graph_jsons/", "")
-  const promise = fetch(path).then(r => {
-    if (!r.ok) throw new Error(`Failed to fetch ${path}: ${r.status}`);
-    return r.json();
-  });
+  const promise = fetchGraphJSON(path);
   cache.set(DATASET_PATH, promise);
   return promise;
 }
@@ -43,31 +42,11 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   let FORCE_XY = .5;
   let FORCE_MANY_BODY = -350;
 
-  // 1. Define your exact type-to-color mapping
-  const orgColorMap = {
-    "ngo_o":  "#6F54F5",
-    "engo":    "#54F472",
-    "hngo":    "#B34CFF",
-    //
-    "biz": "#EBBD18",
-    "trd_assn":  "#B38E00",
-    "ind":    "#592D1A",
-    //
-    "p_org":   "#ADADAD",
-    "muni":    "#F371A6",
-    "edu":    "#FFe9F2",
-    "tribe":    "#FF9400",
-    "union":    "#FF4F29",
-  };
-
-  // 2. Pass keys and values into scaleOrdinal
+  // Org-type -> color, shared with the hero preview (nwk_view.astro) via graph_utils.js.
   const org_color = d3.scaleOrdinal()
     .domain(Object.keys(orgColorMap))
     .range(Object.values(orgColorMap))
     .unknown("#cccccc"); // Fallback color for unexpected org_types
-
-  // Helper for tracking node/edge IDs across potential object mutations
-  const idOf = ep => typeof ep === "object" ? ep.id : ep;
 
   // Helper: initials shown on top-10-by-flow nodes, e.g. "American Petroleum Institute" -> "AP"
   function getInitials(name) {
@@ -81,7 +60,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   }
 
   // Filter top nodes by flow
-  const topNodes = [...data.nodes].sort((a, b) => b.flow - a.flow).slice(0, NODES_SHOWN);
+  const topNodes = topNodesByFlow(data, NODES_SHOWN);
 
   // 1. Calculate aggregate flow per module across top nodes
   const moduleFlowTotals = d3.rollup(topNodes, v => d3.sum(v, d => d.flow), d => d.module_id);
@@ -107,14 +86,11 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
     .filter(d => activeModuleSet.has(d.module_id))
     .map(d => ({ ...d }));
 
-  const activeNodeIds = new Set(nodes.map(d => d.id));
-  const links = data.links
-    .filter(l => activeNodeIds.has(idOf(l.source)) && activeNodeIds.has(idOf(l.target)))
-    .map(d => ({ ...d }));
+  const links = linksAmongNodes(data.links, nodes);
 
   // Color & Radius Scales
   const radius = d3.scaleSqrt().domain([0, d3.max(nodes, d => d.flow)]).range([1, 18]);
-  const module_color = d3.scaleOrdinal(d3.schemeSet2).domain([...new Set(data.nodes.map(d => d.module_id))]);
+  const module_color = d3.scaleOrdinal(moduleColorScheme).domain([...new Set(data.nodes.map(d => d.module_id))]);
 
   // 5. Build module centers using activeModules
   const moduleCenters = new Map(
@@ -277,8 +253,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
       updateHullStyles();
       if (top10FlowIds.has(d.id)) highlightBarRow(d.id, false);
     })
-    .on("click", (event, d) => { event.stopPropagation(); handleNodeClick(d); })
-    .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
+    .on("click", (event, d) => { event.stopPropagation(); handleNodeClick(d); });
 
   svg.on("click", deselectAll);
 
@@ -820,12 +795,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
     node.attr("cx", d => d.x).attr("cy", d => d.y);
     nodeLabels.attr("x", d => d.x).attr("y", d => d.y);
 
-    const circleData = [...d3.group(nodes, d => d.module_id)].map(([module_id, groupNodes]) => {
-      const cx = d3.mean(groupNodes, d => d.x);
-      const cy = d3.mean(groupNodes, d => d.y);
-      const r = d3.max(groupNodes, d => Math.hypot(d.x - cx, d.y - cy)) + 10;
-      return { module_id, cx, cy, r };
-    });
+    const circleData = moduleHullData(nodes, 10);
 
     hullGroup.selectAll("circle")
       .data(circleData, d => d.module_id)
@@ -835,19 +805,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
       .attr("fill-opacity", d => hullOpacity(d.module_id));
   });
 
-  function dragstarted(event) {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
-    event.subject.fx = event.subject.x;
-    event.subject.fy = event.subject.y;
-  }
-  function dragged(event) {
-    event.subject.fx = event.x;
-    event.subject.fy = event.y;
-  }
-  function dragended(event) {
-    if (!event.active) simulation.alphaTarget(0);
-    event.subject.fx = event.subject.fy = null;
-  }
+  node.call(makeDragBehavior(d3, simulation));
 
   invalidation.then(() => {
     simulation.stop();
