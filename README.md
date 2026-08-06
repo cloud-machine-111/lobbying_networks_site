@@ -9,6 +9,7 @@
  
 data:
 - There are a few instances of edges where nodes no bills in common, but I think it's either a post-processing error (zz bills), or maybe the infomap algorithm jumping between disconnected subgraphs--if the latter, I'll drop those edges.
+- Off the dome I remember "weight = base" meaning "only counting number of shared bills". So we don't actually have "weight = base spending" as an option. Need to change this.
 
 interactivity:
 - remove physics animation when jumping between years
