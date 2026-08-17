@@ -1,4 +1,4 @@
-import { fetchGraphJSON, idOf, topNodesByFlow, linksAmongNodes, orgColorMap, moduleColorScheme, moduleHullData, makeDragBehavior } from "./graph_utils.js";
+import { fetchGraphJSON, idOf, topNodesByFlow, linksAmongNodes, orgColorMap, collapseOrgType, orgTypeLabel, moduleColorScheme, moduleHullData, makeDragBehavior } from "./graph_utils.js";
 
 function _1(md){return(
 md`# Lobbying Networks
@@ -62,6 +62,10 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
   // Filter top nodes by flow
   const topNodes = topNodesByFlow(data, NODES_SHOWN);
 
+  // Full dataset with org_typ collapsed, for the "ghost preview" panels below that read
+  // modules not yet revealed by NODES_SHOWN (so they draw from data.nodes, not topNodes).
+  const allNodesByOrgGroup = data.nodes.map(d => ({ ...d, org_typ: collapseOrgType(d.org_typ) }));
+
   // 1. Calculate aggregate flow per module across top nodes
   const moduleFlowTotals = d3.rollup(topNodes, v => d3.sum(v, d => d.flow), d => d.module_id);
 
@@ -81,12 +85,18 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
     .sort((a, b) => allModuleFlowTotals.get(b) - allModuleFlowTotals.get(a));
   const moduleLabelMap = new Map(allModuleIds.map((id, i) => [id, String.fromCharCode(65 + i)]));
 
-  // 4. Filter nodes/links to only keep those in active, non-zero modules
-  const nodes = topNodes
+  // 4. Filter nodes/links to only keep those in active, non-zero modules. org_typ is collapsed
+  // to the categories in orgColorMap here so every downstream color/grouping read (fill,
+  // legend, bar charts) sees only the collapsed set.
+  let nodes = topNodes
     .filter(d => activeModuleSet.has(d.module_id))
-    .map(d => ({ ...d }));
+    .map(d => ({ ...d, org_typ: collapseOrgType(d.org_typ) }));
 
-  const links = linksAmongNodes(data.links, nodes);
+  const links = linksAmongNodes(data.links, nodes)
+  .filter(l => Array.isArray(l.bills) && l.bills.length > 0);
+
+  const linkNodeIds = new Set(links.flatMap(l => [idOf(l.source), idOf(l.target)]));
+nodes = nodes.filter(d => linkNodeIds.has(d.id));
 
   // Color & Radius Scales
   const radius = d3.scaleSqrt().domain([0, d3.max(nodes, d => d.flow)]).range([1, 18]);
@@ -314,7 +324,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
     .attr("transform", (_, i) => `translate(${-width / 2 + 20}, ${-height / 2 + 50 + i * 20})`);
 
   legend.append("rect").attr("width", 12).attr("height", 12).attr("fill", d => org_color(d));
-  legend.append("text").attr("x", 18).attr("y", 10).attr("fill", "#fff").text(d => d);
+  legend.append("text").attr("x", 18).attr("y", 10).attr("fill", "#fff").text(d => orgTypeLabel(d));
 
   // ---------------------------------------------------------------------------
   // 5. SIDE PANEL & DATA VISUALIZATION FUNCTIONS
@@ -500,7 +510,7 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
           .map(d => ({ label: d.name, value: d.flow, org_typ: d.org_typ, id: d.id }));
 
         const orgFlow = d3.rollup(moduleNodes, v => d3.sum(v, d => d.flow), d => d.org_typ);
-        const orgBarData = [...orgFlow.entries()].map(([org, flow]) => ({ label: org, value: flow, org_typ: org }));
+        const orgBarData = [...orgFlow.entries()].map(([org, flow]) => ({ label: org, value: flow, org_typ: org })).sort((a, b) => b.value - a.value);
 
         drawBarChart(panel, nodeBarData, "Top nodes by flow", true, true);
         drawBarChart(panel, orgBarData, "Organizations by flow", true, false);
@@ -508,14 +518,20 @@ function _chart(d3,data,NODES_SHOWN,invalidation)
       } else {
         // Ghost preview built from the full dataset (the graph itself has no nodes for this
         // module yet, so there's no live selection/edge data to draw bills from).
-        const allModuleNodes = data.nodes.filter(d => d.module_id === module_id);
+        const allModuleNodes = allNodesByOrgGroup.filter(d => d.module_id === module_id);
         const nodeBarData = [...allModuleNodes]
           .sort((a, b) => b.flow - a.flow)
           .slice(0, 10)
           .map(d => ({ label: d.name, value: d.flow, org_typ: d.org_typ }));
 
-        const orgFlow = d3.rollup(allModuleNodes, v => d3.sum(v, d => d.flow), d => d.org_typ);
-        const orgBarData = [...orgFlow.entries()].map(([org, flow]) => ({ label: org, value: flow, org_typ: org }));
+        const orgFlow = d3.rollup(
+          allModuleNodes, // full dataset, not just visible nodes
+          v => d3.sum(v, d => d.flow),
+          d => d.org_typ
+        );
+        const orgBarData = [...orgFlow.entries()]
+          .map(([org, flow]) => ({ label: org, value: flow, org_typ: org }))
+          .sort((a, b) => b.value - a.value);
 
         drawBarChart(panel, nodeBarData, "Top nodes by flow", false);
         drawBarChart(panel, orgBarData, "Organizations by flow", false);

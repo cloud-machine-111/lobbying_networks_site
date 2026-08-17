@@ -56,18 +56,57 @@ export function linksAmongNodes(links, nodes) {
 // Org-type -> color. The single source of truth for node fill color, shared by the hero
 // preview and the full explorer so the two views read as the same visual language.
 export const orgColorMap = {
-  ngo_o: "#6F54F5",
   engo: "#54F472",
-  hngo: "#B34CFF",
-  biz: "#EBBD18",
-  trd_assn: "#B38E00",
+  firms_trd_assns: "#EBBD18",
   ind: "#592D1A",
-  p_org: "#ADADAD",
   muni: "#F371A6",
-  edu: "#FFe9F2",
   tribe: "#FF9400",
-  union: "#FF4F29",
+  other: "#ADADAD"
 };
+
+// export const orgColorMap = {
+//   ngo_o: "#6F54F5",
+//   engo: "#54F472",
+//   hngo: "#B34CFF",
+//   biz: "#EBBD18",
+//   trd_assn: "#B38E00",
+//   ind: "#592D1A",
+//   p_org: "#ADADAD",
+//   muni: "#F371A6",
+//   edu: "#FFe9F2",
+//   tribe: "#FF9400",
+//   union: "#FF4F29",
+// };
+
+// Raw org_typ codes -> the collapsed categories used by orgColorMap above. Nodes fetched from
+// R2 still carry the fine-grained codes, so any code coloring/grouping by org_typ must run
+// values through collapseOrgType first or they'll fall through to org_color's unknown() gray.
+const orgTypeGroups = {
+  ngo_o: "other",
+  hngo: "other",
+  edu: "other",
+  union: "other",
+  p_org: "other",
+  biz: "firms_trd_assns",
+  trd_assn: "firms_trd_assns",
+};
+
+export function collapseOrgType(org_typ) {
+  return orgTypeGroups[org_typ] ?? org_typ;
+}
+
+// orgColorMap keys -> human-readable legend labels.
+export const orgTypeLabels = {
+  engo: "Environmental NGO",
+  firms_trd_assns: "Firm/Trade Assoc.",
+  ind: "Independent",
+  muni: "Municipal",
+  tribe: "Tribe",
+  other: "Other"
+
+};
+
+export const orgTypeLabel = (org_typ) => orgTypeLabels[org_typ] ?? org_typ;
 
 // d3.schemeSet2, inlined so this module has no d3 dependency.
 export const moduleColorScheme = [

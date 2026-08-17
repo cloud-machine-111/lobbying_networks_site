@@ -9,7 +9,7 @@ import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 
 <Layout>
   <div class="explorer">
-    <h1>Explore</h1>
+    <h2> <i>1. explore networks </i></h2>
     <div class="params">
       <span id="year_group">
         <label for="yr_input"><b>Year: </b></label>
@@ -69,6 +69,9 @@ import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 
     <button id="batch-btn" type="button">Run all screenshots</button>
 
+    <h2><i>2. flow through time</i></h2>
+    insert flows thru time.
+
     <script type="module">
       /////// EXPLORER WINDOW /////
       import define from "../scripts/index.js";
@@ -118,6 +121,16 @@ import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
           });
         },
       );
+
+      function updateYearVisibility() {
+        const timeFrame = document.getElementById("time_frame").value;
+        document.getElementById("year_group").style.display =
+          timeFrame === "annual" ? "" : "none";
+      }
+
+      document.getElementById("time_frame").addEventListener("change", updateYearVisibility);
+
+      updateYearVisibility(); // called once during page load, then never again
 
       ////// SCREENSHOTTING //////
       import { toPng } from "https://esm.sh/html-to-image@1.11.11";

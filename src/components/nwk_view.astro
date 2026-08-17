@@ -22,6 +22,7 @@ const { path: explicitPath = null } = Astro.props;
     topNodesByFlow,
     linksAmongNodes,
     orgColorMap,
+    collapseOrgType,
     moduleColorScheme,
     moduleHullData,
     makeDragBehavior,
@@ -50,7 +51,8 @@ const { path: explicitPath = null } = Astro.props;
 
   const data = await fetchGraphJSONFromR2(path);
 
-  const nodes = topNodesByFlow(data, 20);
+  const nodes = topNodesByFlow(data, 20)
+    .map((d) => ({ ...d, org_typ: collapseOrgType(d.org_typ) }));
   const links = linksAmongNodes(data.links, nodes);
 
   // Same org-type -> color mapping as the full explorer (observable_nwk_viz.js), so node
