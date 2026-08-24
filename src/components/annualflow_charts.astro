@@ -5,28 +5,52 @@ import { ORG_TYPES, orgColorMap } from "../scripts/graph_utils.js";
 interface Props {
     show_controls?: boolean;
     width?: number;
+    org_typ?: string[];
+    weight_type?: "base" | "spending";
+    spending?: "logged" | "unlogged";
+    agency?: string;
+    // CSS selector for an external "normalize y-axis" checkbox (see faceted_views.astro) that
+    // this instance should follow. Left unset, the chart auto-scales its y-axis to the data.
+    normalize_checkbox_selector?: string;
 }
 // Q - are astro props exactly like react props? are they a feature outside of vanilla js?
 
 const { show_controls = true } = Astro.props;
 const { width = 500} = Astro.props;
+// These four are only used when show_controls is false — with controls shown, the
+// <select>/checkbox elements are the source of truth and these props are ignored.
+const {
+    org_typ = ORG_TYPES.map((o) => o.value),
+    weight_type = "base",
+    spending = "unlogged",
+    agency = ALL_AGENCIES_VALUE,
+} = Astro.props;
+const { normalize_checkbox_selector } = Astro.props;
 ---
 
+<div
+    class="annual-flow-chart"
+    data-org-typ={JSON.stringify(org_typ)}
+    data-weight-type={weight_type}
+    data-spending={spending}
+    data-agency={agency}
+    data-normalize-selector={normalize_checkbox_selector}
+>
 {show_controls && (
         <div style={`width: ${width}px`}>
             <div class="params">
                 <b>Agency: </b> &nbsp;
-                <select id="af_agency">
+                <select class="af_agency">
                     {AGENCIES.map((a) => <option value={a.value}>{a.label}</option>)}
                     <option value={ALL_AGENCIES_VALUE}>All agencies</option>
                 </select>
                 &nbsp;&nbsp;
                 <br>
                 <b>Org type: </b> &nbsp;
-                <span id="af_org_typ" class="checkbox-group">
+                <span class="af_org_typ checkbox-group">
                     {ORG_TYPES.map((o) => (
                         <label class="checkbox-option">
-                            <input type="checkbox" name="af_org_typ" value={o.value} checked />
+                            <input type="checkbox" class="af_org_typ_input" value={o.value} checked />
                             <span class="swatch" style={`background:${orgColorMap[o.value as keyof typeof orgColorMap]}`}></span>
                             {o.label}
                         </label>
@@ -34,13 +58,13 @@ const { width = 500} = Astro.props;
                 </span>
                 &nbsp;&nbsp;
                 <b>Weight type: </b> &nbsp;
-                <select id="af_weight_type">
+                <select class="af_weight_type">
                     <option value="base">base</option>
                     <option value="spending">spending</option>
                 </select>
                 &nbsp;&nbsp;
                 <b>Spending: </b> &nbsp;
-                <select id="af_log">
+                <select class="af_log">
                     <option value="logged">log(spending)</option>
                     <option value="unlogged">plain spending</option>
                 </select>
@@ -48,7 +72,6 @@ const { width = 500} = Astro.props;
         </div>
     )
 }
-
 
 
 <style>
@@ -71,41 +94,26 @@ const { width = 500} = Astro.props;
         height: 0.8em;
         border-radius: 2px;
     }
-    .af_legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.25em 1em;
-        font-size: 0.85em;
-        margin-top: 0.5em;
-    }
-    .af_legend .checkbox-option {
-        gap: 0.35em;
+    .af_title {
+        font-weight: 600;
+        font-size: 0.9em;
+        text-align: center;
+        margin-bottom: 0.25em;
+        /* Wrap onto multiple lines within the chart's own width instead of overflowing it —
+           long agency names would otherwise force wider grid columns and make the facet grid
+           uneven (see faceted_views.astro's "at once" layout). */
+        overflow-wrap: anywhere;
     }
 </style>
 
-<div id="chart" data-width={width} style={`width:${width}px; max-width:100%;`}></div>
-<div id="af_legend" class="af_legend"></div>
+<div class="af_title"></div>
+<div class="af_chart" data-width={width} style={`width:${width}px; max-width:100%;`}></div>
+</div>
 
 <script>
     import * as d3 from "d3";
     import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
     import { orgColorMap, orgTypeLabel, collapseOrgType } from "../scripts/graph_utils.js";
-
-    const container = document.getElementById("chart");
-    if (!container) throw new Error("#chart container not found");
-    const legendEl = document.getElementById("af_legend");
-    if (!legendEl) throw new Error("#af_legend not found");
-
-    const width = Number(container.dataset.width) || 400;
-    const height = Math.round(width * 0.65);
-    const margin = { top: 16, right: 16, bottom: 28, left: 44 };
-
-    const agencySelect = document.getElementById("af_agency") as HTMLSelectElement | null;
-    const weightTypeSelect = document.getElementById("af_weight_type") as HTMLSelectElement | null;
-    const logSelect = document.getElementById("af_log") as HTMLSelectElement | null;
-    const orgTypeCheckboxes = Array.from(
-        document.querySelectorAll<HTMLInputElement>('input[name="af_org_typ"]'),
-    );
 
     // agency <select> values are the underscored AGENCIES.value strings, but flow_shares CSVs
     // key rows by the human-readable agency label (or "All agencies" for x_agy).
@@ -132,6 +140,15 @@ const { width = 500} = Astro.props;
             : `${FLOW_SHARES_DIR}/spending_weight_nolog_flow_shares.csv`;
     }
 
+    function buildTitle(agencyLabel: string, weightType: string, log: string, selectedTypes: string[]) {
+        const weightLabel = weightType === "base"
+            ? "base weight"
+            : `spending weight (${log === "logged" ? "log" : "unlogged"})`;
+        let title = `${agencyLabel} — ${weightLabel}`;
+        if (selectedTypes.length === 1) title += ` — ${orgTypeLabel(selectedTypes[0])}`;
+        return title;
+    }
+
     // Parsed CSVs are cached by path so switching agency/org-type controls doesn't
     // re-fetch data that's already been loaded.
     const csvCache = new Map<string, Promise<FlowRow[]>>();
@@ -149,79 +166,141 @@ const { width = 500} = Astro.props;
         return entry;
     }
 
-    const svg = d3.select(container).append("svg")
-        .attr("viewBox", [0, 0, width, height])
-        .style("width", "100%")
-        .style("height", "auto");
+    // Astro dedupes identical <script> blocks per page, so this runs once total even when
+    // <AnnualFlowChart> is used more than once. Each instance is set up independently here,
+    // scoped to its own root element, rather than relying on document-wide ids.
+    // Below this rendered width (px), x-axis year labels are rotated diagonally so they
+    // don't overlap — narrow facet grid cells and "individually" mini charts hit this often.
+    const ROTATE_LABELS_BELOW = 500;
 
-    const xAxisG = svg.append("g").attr("transform", `translate(0,${height - margin.bottom})`);
-    const yAxisG = svg.append("g").attr("transform", `translate(${margin.left},0)`);
-    const linesG = svg.append("g").attr("fill", "none").attr("stroke-width", 2);
+    function setupInstance(root: HTMLElement) {
+        const container = root.querySelector<HTMLElement>(".af_chart");
+        if (!container) throw new Error(".af_chart container not found");
+        const titleEl = root.querySelector<HTMLElement>(".af_title");
 
-    const line = d3.line<{ year: number; value: number }>()
-        .x((d) => x(d.year))
-        .y((d) => y(d.value));
+        const width = Number(container.dataset.width) || 400;
+        const height = Math.round(width * 0.65);
+        const margin = { top: 16, right: 16, bottom: 32, left: 44 };
 
-    let x = d3.scaleLinear().range([margin.left, width - margin.right]);
-    let y = d3.scaleLinear().range([height - margin.bottom, margin.top]);
+        const agencySelect = root.querySelector<HTMLSelectElement>(".af_agency");
+        const weightTypeSelect = root.querySelector<HTMLSelectElement>(".af_weight_type");
+        const logSelect = root.querySelector<HTMLSelectElement>(".af_log");
+        const orgTypeCheckboxes = Array.from(
+            root.querySelectorAll<HTMLInputElement>(".af_org_typ_input"),
+        );
 
-    async function redraw() {
-        const weightType = weightTypeSelect?.value ?? "base";
-        const log = logSelect?.value ?? "unlogged";
-        const agency = agencySelect?.value ?? ALL_AGENCIES_VALUE;
-        const agencyLabel = agencyLabels[agency] ?? agency;
-        const selectedTypes = orgTypeCheckboxes.filter((c) => c.checked).map((c) => c.value);
+        // Used only when the corresponding control isn't rendered (show_controls=false);
+        // when controls exist, their live values always take precedence over these.
+        const fixedOrgTypes = JSON.parse(root.dataset.orgTyp || "[]") as string[];
+        const fixedWeightType = root.dataset.weightType;
+        const fixedSpending = root.dataset.spending;
+        const fixedAgency = root.dataset.agency;
 
-        const rows = await loadCsv(csvPathFor(weightType, log));
-        const forAgency = rows.filter((r) => r.agency === agencyLabel);
+        // An external "normalize y-axis" checkbox (shared across many chart instances in the
+        // "individually" facet view — see faceted_views.astro) that this instance follows, if any.
+        const normalizeSelector = root.dataset.normalizeSelector;
+        const normalizeCheckbox = normalizeSelector
+            ? document.querySelector<HTMLInputElement>(normalizeSelector)
+            : null;
 
-        const years = d3.extent(forAgency, (r) => r.year) as [number, number];
-        const yearRange = Number.isFinite(years[0])
-            ? d3.range(years[0], years[1] + 1)
-            : [];
+        const svg = d3.select(container).append("svg")
+            .attr("viewBox", [0, 0, width, height])
+            .style("width", "100%")
+            .style("height", "auto");
 
-        const series = selectedTypes.map((org_typ) => {
-            const byYear = d3.rollup(
-                forAgency.filter((r) => r.org_typ === org_typ),
-                (v) => d3.sum(v, (r) => r.flow_share),
-                (r) => r.year,
-            );
-            return {
-                org_typ,
-                values: yearRange.map((yr) => ({ year: yr, value: byYear.get(yr) ?? 0 })),
-            };
-        });
+        const xAxisG = svg.append("g").attr("transform", `translate(0,${height - margin.bottom})`);
+        const yAxisG = svg.append("g").attr("transform", `translate(${margin.left},0)`);
+        const linesG = svg.append("g").attr("fill", "none").attr("stroke-width", 2);
 
-        x.domain(years[0] !== undefined && Number.isFinite(years[0]) ? years : [2000, 2021]);
-        y.domain([0, d3.max(series.flatMap((s) => s.values.map((v) => v.value))) || 1]).nice();
+        const line = d3.line<{ year: number; value: number }>()
+            .x((d) => x(d.year))
+            .y((d) => y(d.value));
 
-        xAxisG.call(d3.axisBottom(x).ticks(Math.min(yearRange.length, 10)).tickFormat(d3.format("d")));
-        yAxisG.call(d3.axisLeft(y).ticks(6).tickFormat(d3.format(".0%")));
+        const x = d3.scaleLinear().range([margin.left, width - margin.right]);
+        const y = d3.scaleLinear().range([height - margin.bottom, margin.top]);
 
-        linesG.selectAll<SVGPathElement, typeof series[number]>("path")
-            .data(series, (d) => d.org_typ)
-            .join("path")
-            .attr("stroke", (d) => orgColorMap[d.org_typ as keyof typeof orgColorMap] ?? "#cccccc")
-            .attr("d", (d) => line(d.values));
-
-        legendEl.innerHTML = "";
-        for (const org_typ of selectedTypes) {
-            const item = document.createElement("span");
-            item.className = "checkbox-option";
-            const swatch = document.createElement("span");
-            swatch.className = "swatch";
-            swatch.style.background = orgColorMap[org_typ as keyof typeof orgColorMap] ?? "#cccccc";
-            item.append(swatch, document.createTextNode(orgTypeLabel(org_typ)));
-            legendEl.appendChild(item);
+        // Rotates the x-axis year labels diagonally once the chart renders narrow enough that
+        // horizontal labels would overlap (small facet-grid cells, "individually" mini charts).
+        function applyLabelRotation(renderedWidth: number) {
+            const rotate = renderedWidth > 0 && renderedWidth < ROTATE_LABELS_BELOW;
+            xAxisG.selectAll<SVGTextElement, unknown>("text")
+                .style("text-anchor", rotate ? "end" : "middle")
+                .attr("transform", rotate ? "rotate(-60)" : null)
+                .attr("dx", rotate ? "-0.5em" : null)
+                .attr("dy", rotate ? "0.15em" : null);
         }
+
+        async function redraw() {
+            const weightType = weightTypeSelect?.value ?? fixedWeightType ?? "base";
+            const log = logSelect?.value ?? fixedSpending ?? "unlogged";
+            const agency = agencySelect?.value ?? fixedAgency ?? ALL_AGENCIES_VALUE;
+            const agencyLabel = agencyLabels[agency] ?? agency;
+            const selectedTypes = orgTypeCheckboxes.length
+                ? orgTypeCheckboxes.filter((c) => c.checked).map((c) => c.value)
+                : fixedOrgTypes;
+
+            const rows = await loadCsv(csvPathFor(weightType, log));
+            const forAgency = rows.filter((r) => r.agency === agencyLabel);
+
+            const years = d3.extent(forAgency, (r) => r.year) as [number, number];
+            const yearRange = Number.isFinite(years[0])
+                ? d3.range(years[0], years[1] + 1)
+                : [];
+
+            const series = selectedTypes.map((org_typ) => {
+                const byYear = d3.rollup(
+                    forAgency.filter((r) => r.org_typ === org_typ),
+                    (v) => d3.sum(v, (r) => r.flow_share),
+                    (r) => r.year,
+                );
+                return {
+                    org_typ,
+                    values: yearRange.map((yr) => ({ year: yr, value: byYear.get(yr) ?? 0 })),
+                };
+            });
+
+            x.domain(years[0] !== undefined && Number.isFinite(years[0]) ? years : [2000, 2021]);
+
+            const normalize = normalizeCheckbox?.checked ?? false;
+            if (normalize) {
+                y.domain([0, 1]);
+            } else {
+                y.domain([0, d3.max(series.flatMap((s) => s.values.map((v) => v.value))) || 1]).nice();
+            }
+
+            xAxisG.call(d3.axisBottom(x).ticks(Math.min(yearRange.length, 10)).tickFormat(d3.format("d")));
+            applyLabelRotation(container!.getBoundingClientRect().width);
+            // A fixed 0-100% domain lands on round ticks (0%, 20%, ...), so no extra precision is
+            // needed there; an auto-scaled domain can otherwise round small shares down to "0%".
+            yAxisG.call(d3.axisLeft(y).ticks(6).tickFormat(d3.format(normalize ? ".0%" : ".1%")));
+
+            if (titleEl) titleEl.textContent = buildTitle(agencyLabel, weightType, log, selectedTypes);
+
+            linesG.selectAll<SVGPathElement, typeof series[number]>("path")
+                .data(series, (d) => d.org_typ)
+                .join("path")
+                .attr("stroke", (d) => orgColorMap[d.org_typ as keyof typeof orgColorMap] ?? "#cccccc")
+                .attr("d", (d) => line(d.values));
+        }
+
+        [agencySelect, weightTypeSelect, logSelect].forEach((el) => {
+            el?.addEventListener("change", redraw);
+        });
+        orgTypeCheckboxes.forEach((c) => c.addEventListener("change", redraw));
+        normalizeCheckbox?.addEventListener("change", redraw);
+
+        // Grid facet cells and the shared normalize checkbox can change this chart's rendered
+        // width without firing any of the listeners above, so watch it directly.
+        new ResizeObserver((entries) => {
+            applyLabelRotation(entries[0].contentRect.width);
+        }).observe(container);
+
+        redraw();
     }
 
-    [agencySelect, weightTypeSelect, logSelect].forEach((el) => {
-        el?.addEventListener("change", redraw);
-    });
-    orgTypeCheckboxes.forEach((c) => c.addEventListener("change", redraw));
-
-    redraw();
+    document
+        .querySelectorAll<HTMLElement>(".annual-flow-chart")
+        .forEach((root) => setupInstance(root));
 </script>
 
 

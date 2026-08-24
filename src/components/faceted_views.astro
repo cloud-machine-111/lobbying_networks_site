@@ -1,0 +1,325 @@
+---
+import { colors } from "../styles/colors";
+import AnnualFlowChart from "../components/annualflow_charts.astro";
+import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
+import { ORG_TYPES, orgTypeLabel, orgColorMap } from "../scripts/graph_utils.js";
+
+const ALL_ORG_TYPES = ORG_TYPES.map((o) => o.value);
+const MINI_WIDTH = 180;
+
+const WEIGHT_ROWS = [
+    {
+        key: "base",
+        label: "base",
+        weight_type: "base" as const,
+        spending: "unlogged" as const,
+    },
+    {
+        key: "spending_logged",
+        label: "spending (log)",
+        weight_type: "spending" as const,
+        spending: "logged" as const,
+    },
+    {
+        key: "spending_unlogged",
+        label: "spending (unlogged)",
+        weight_type: "spending" as const,
+        spending: "unlogged" as const,
+    },
+];
+
+const AGENCY_ROWS = [
+    ...AGENCIES.map((a) => ({ key: a.value, label: a.label, agency: a.value })),
+    {
+        key: ALL_AGENCIES_VALUE,
+        label: "All agencies",
+        agency: ALL_AGENCIES_VALUE,
+    },
+];
+---
+
+<style>
+    .callout {
+        margin: 15 0;
+        padding: 15px;
+        color: rgb(244, 244, 238);
+        background-color: var(--accentBrown);
+        font-size: smaller;
+        font-style: italic;
+        max-width: 60%;
+    }
+    .color_key {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25em 1em;
+        margin: 0.5em 0;
+        font-size: 0.9em;
+    }
+    .color_key-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35em;
+        white-space: nowrap;
+    }
+    .color_key-swatch {
+        display: inline-block;
+        width: 0.8em;
+        height: 0.8em;
+        border-radius: 2px;
+    }
+</style>
+<!--
+  Hi! This component should give the faceted views for (1) flow through time, and (2) networks.
+  We'll start w/ flow through time.
+-->
+
+<h2>Facet</h2>
+
+<div class="params">
+    <b>For each </b> &nbsp;
+    <select class="for_each">
+        <option value={"wt_typ"}>weighing style</option>
+        <option value={"agency"}>agency</option>
+    </select>... &nbsp;
+    <b>show flow for all orgs </b> &nbsp;
+    <select class="org_view">
+        <option value={"at_once"}>at once</option>
+        <option value={"individually"}> individually</option>
+    </select>
+    &nbsp;&nbsp;
+    <!-- <br /> -->
+
+    <div class="color_key">
+        {ORG_TYPES.map((o) => (
+            <span class="color_key-item">
+                <span
+                    class="color_key-swatch"
+                    style={`background:${orgColorMap[o.value as keyof typeof orgColorMap]}`}
+                ></span>
+                {orgTypeLabel(o.value)}
+            </span>
+        ))}
+    </div>
+
+    <span class="normalize_group">
+
+        <br>
+            <label
+            ><input type="checkbox" class="normalize_y" checked /> normalize y-axis</label
+        >
+
+        <div class="callout">
+            <b>Tip: </b>
+            Y-axis is automatically normalized to provide an absolute point of reference,
+            but some org types have a very small amount of flow that can be seen when
+            axis isn't normalized.
+
+        </div>
+        <br />
+
+    </span>
+    <br />
+</div>
+
+<!-- Every for_each/org_view combination is rendered up front (AnnualFlowChart is an Astro
+     component, so it can't be instantiated on the fly from client JS); the script below just
+     toggles which .facet-block is visible based on the two selects above. -->
+
+<div
+    class="facet-block facet-grid"
+    data-for-each="wt_typ"
+    data-org-view="at_once"
+>
+    {
+        WEIGHT_ROWS.map((row) => (
+            <div class="facet-cell">
+                <AnnualFlowChart
+                    show_controls={false}
+                    width={320}
+                    org_typ={ALL_ORG_TYPES}
+                    weight_type={row.weight_type}
+                    spending={row.spending}
+                    agency={ALL_AGENCIES_VALUE}
+                />
+            </div>
+        ))
+    }
+</div>
+
+<div class="facet-block" data-for-each="wt_typ" data-org-view="individually">
+    {
+        WEIGHT_ROWS.map((row) => (
+            <div class="facet-row">
+                <div class="facet-row-label">{row.label}</div>
+                <div class="facet-row-charts">
+                    {ORG_TYPES.map((org) => (
+                        <div class="facet-mini" style={`width:${MINI_WIDTH}px`}>
+                            <div class="facet-mini-label">
+                                {orgTypeLabel(org.value)}
+                            </div>
+                            <AnnualFlowChart
+                                show_controls={false}
+                                width={MINI_WIDTH}
+                                org_typ={[org.value]}
+                                weight_type={row.weight_type}
+                                spending={row.spending}
+                                agency={ALL_AGENCIES_VALUE}
+                                normalize_checkbox_selector=".normalize_y"
+                            />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        ))
+    }
+</div>
+
+<div
+    class="facet-block facet-grid"
+    data-for-each="agency"
+    data-org-view="at_once"
+>
+    {
+        AGENCY_ROWS.map((row) => (
+            <div class="facet-cell">
+                <AnnualFlowChart
+                    show_controls={false}
+                    width={320}
+                    org_typ={ALL_ORG_TYPES}
+                    weight_type="base"
+                    spending="unlogged"
+                    agency={row.agency}
+                />
+            </div>
+        ))
+    }
+</div>
+
+<div class="facet-block" data-for-each="agency" data-org-view="individually">
+    {
+        AGENCY_ROWS.map((row) => (
+            <div class="facet-row">
+                <div class="facet-row-label">{row.label}</div>
+                <div class="facet-row-charts">
+                    {ORG_TYPES.map((org) => (
+                        <div class="facet-mini" style={`width:${MINI_WIDTH}px`}>
+                            <div class="facet-mini-label">
+                                {orgTypeLabel(org.value)}
+                            </div>
+                            <AnnualFlowChart
+                                show_controls={false}
+                                width={MINI_WIDTH}
+                                org_typ={[org.value]}
+                                weight_type="base"
+                                spending="unlogged"
+                                agency={row.agency}
+                                normalize_checkbox_selector=".normalize_y"
+                            />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        ))
+    }
+</div>
+
+<style>
+    .normalize_group {
+        display: none;
+    }
+    .normalize_group.active {
+        display: inline;
+    }
+    .facet-block {
+        display: none;
+    }
+    .facet-block.active {
+        display: block;
+    }
+    .facet-block.facet-grid.active {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.5em 1em;
+    }
+    .facet-cell {
+        min-width: 0;
+    }
+    /* AnnualFlowChart gives its chart a fixed pixel width by default; inside the grid we want
+       it to fill the cell instead, so the layout actually resizes with the viewport. */
+    .facet-grid :global(.af_chart) {
+        width: 100% !important;
+    }
+    .facet-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 1em;
+        padding: 0.75em 0;
+        border-top: 1px solid #333;
+    }
+    .facet-row-label {
+        flex: 0 0 auto;
+        width: 9em;
+        font-weight: bold;
+        padding-top: 0.25em;
+    }
+    .facet-row-charts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1em;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .facet-mini {
+        flex: 0 0 auto;
+    }
+    .facet-mini-label {
+        font-size: 0.7em;
+        font-style: italic;
+        text-align: center;
+        color: var(--lightBrown);
+        opacity: 0.8;
+    }
+</style>
+
+<script>
+    function setupFacetToggles(root: ParentNode) {
+        const forEachSelect =
+            root.querySelector<HTMLSelectElement>(".for_each");
+        const orgViewSelect =
+            root.querySelector<HTMLSelectElement>(".org_view");
+        const blocks = Array.from(
+            root.querySelectorAll<HTMLElement>(".facet-block"),
+        );
+        const normalizeGroup =
+            root.querySelector<HTMLElement>(".normalize_group");
+        if (!forEachSelect || !orgViewSelect || !blocks.length) return;
+
+        function updateVisibleBlock() {
+            const forEach = forEachSelect!.value;
+            const orgView = orgViewSelect!.value;
+            for (const block of blocks) {
+                const matches =
+                    block.dataset.forEach === forEach &&
+                    block.dataset.orgView === orgView;
+                block.classList.toggle("active", matches);
+            }
+            // The normalize-y-axis checkbox only affects the "individually" mini charts.
+            normalizeGroup?.classList.toggle(
+                "active",
+                orgView === "individually",
+            );
+        }
+
+        forEachSelect.addEventListener("change", updateVisibleBlock);
+        orgViewSelect.addEventListener("change", updateVisibleBlock);
+        updateVisibleBlock();
+    }
+
+    document.querySelectorAll<HTMLElement>(".params").forEach((paramsEl) => {
+        const container = paramsEl.parentElement;
+        if (container?.querySelector(".facet-block"))
+            setupFacetToggles(container);
+    });
+</script>
+
+<br />

@@ -4,11 +4,10 @@ import Layout from "../layouts/Layout.astro";
 import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 import Header from "../components/Header.astro";
 import AnnualFlowChart from "../components/annualflow_charts.astro"
+import FacetedViews from "../components/faceted_views.astro"
 // Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
 // Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
 ---
-<Header />
-
 <Layout>
   <div class="explorer">
     <h2> <i>1. explore networks </i></h2>
@@ -71,11 +70,16 @@ import AnnualFlowChart from "../components/annualflow_charts.astro"
 
     <!-- <button id="batch-btn" type="button">Run all screenshots</button> -->
 
+    <br><br>
     <h2><i>2. flow through time</i></h2>
-    insert flows thru time.
     <br>
-    <AnnualFlowChart show_controls={true}/>
+    <!-- <AnnualFlowChart show_controls={true}/>
 
+    <AnnualFlowChart show_controls={false}/> -->
+
+    <FacetedViews />
+
+    <br>
     <script type="module">
       /////// EXPLORER WINDOW /////
       import define from "../scripts/index.js";
@@ -246,7 +250,7 @@ import AnnualFlowChart from "../components/annualflow_charts.astro"
 
       document
         .getElementById("batch-btn")
-        .addEventListener("click", () =>
+        ?.addEventListener("click", () =>
           runBatchScreenshots({ dryRun: false }),
         );
     </script>
@@ -259,3 +263,4 @@ import AnnualFlowChart from "../components/annualflow_charts.astro"
     </style>
   </div>
 </Layout>
+
