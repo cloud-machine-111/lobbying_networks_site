@@ -25,11 +25,13 @@ import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 
       &nbsp; &nbsp;
 
-      <b>Spending: </b> &nbsp;
-      <select id="log">
-        <option value="logged">log(spending)</option>
-        <option value="unlogged">plain spending</option>
-      </select>
+      <span id="log_group">
+        <b>Spending: </b> &nbsp;
+        <select id="log">
+          <option value="logged">log(spending)</option>
+          <option value="unlogged">plain spending</option>
+        </select>
+      </span>
 
       &nbsp; &nbsp;
 
@@ -52,9 +54,7 @@ import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
       <b>Weight type: </b> &nbsp;
       <select id="weight_type">
         <option value="base">base</option>
-        <option value="bill">bill</option>
-        <option value="agy_bill">agency-bill</option>
-        <option value="agy">agency</option>
+        <option value="spending">spending</option>
       </select>
 
       <div id="slider-container"></div>
@@ -99,16 +99,17 @@ import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
         const weightType = document.getElementById("weight_type").value;
         const yr = document.getElementById("yr_input").value;
 
+        // x_agy (the "All agencies" option) is filed under "all_agys" in the data.
+        const agy_file_str = agency == "x_agy" ? "all_agys" : agency;
+        const period = timeFrame == "aggregate" ? "aggregate" : yr;
+
         let path = "";
-        if (timeFrame == "aggregate") {
-          // graph_jsons/aggregate/agy/titled_v2_bills_assoc_log_Army_Corps_of_Engineers_aggregate_infomap.json
-          path = `/data/graph_jsons/aggregate/${weightType}/titled_v2_bills_assoc_${log}_${agency}_aggregate_infomap.json`;
+        if (weightType == "base") {
+          // base weights have no logged/unlogged split.
+          path = `/nwks_base_weights/final_${agy_file_str}_${period}_infomap.json`;
         } else {
-          let agy_folder_str = "per_agency";
-          if (agency == "x_agy") {
-            agy_folder_str = "x_agy";
-          }
-          path = `/data/graph_jsons/annual/${agy_folder_str}/titled_v2_bills_assoc_${agency}_${weightType}_${yr}_${log}.json`;
+          const log_str = log == "logged" ? "log" : "nolog";
+          path = `/nwks_spending_weights/final_${log_str}_${agy_file_str}_${period}_infomap.json`;
         }
         console.log(path);
         return path;
@@ -132,6 +133,16 @@ import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 
       updateYearVisibility(); // called once during page load, then never again
 
+      function updateLogVisibility() {
+        const weightType = document.getElementById("weight_type").value;
+        document.getElementById("log_group").style.display =
+          weightType === "spending" ? "" : "none";
+      }
+
+      document.getElementById("weight_type").addEventListener("change", updateLogVisibility);
+
+      updateLogVisibility(); // called once during page load, then never again
+
       ////// SCREENSHOTTING //////
       import { toPng } from "https://esm.sh/html-to-image@1.11.11";
 
@@ -146,7 +157,7 @@ import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
             });
 
             const link = document.createElement("a");
-            let filepath = `chart${buildDatasetPath().replace("data/graph_jsons/", "").replace("titled_v2_bills_assoc_", "").replace(".json", ".png").replaceAll("/", "_")}`;
+            let filepath = `chart${buildDatasetPath().replace("/data/", "_").replace("final_", "").replace(".json", ".png").replaceAll("/", "_")}`;
             link.download = filepath;
             link.href = dataUrl;
             link.click();
@@ -162,7 +173,7 @@ import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
         ...AGENCIES.map((a) => a.value),
         ALL_AGENCIES_VALUE,
       ];
-      const WEIGHT_TYPES = ["agy"]; //["base", "bill", "agy_bill", "agy"];
+      const WEIGHT_TYPES = ["base", "spending"];
       const LOG_OPTIONS = ["logged", "unlogged"];
 
       function setSelect(id, value) {

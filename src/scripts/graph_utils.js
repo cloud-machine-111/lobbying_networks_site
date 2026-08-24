@@ -14,28 +14,33 @@ export function fetchGraphJSON(path) {
   });
 }
 
-// The generated graph JSONs (public/data/graph_jsons/**) are gitignored — too large to
-// commit — and only actually exist in R2. Any code that wants one of these datasets, at
-// build time or runtime, must go through R2 rather than assuming a local file exists.
+// The generated graph JSONs (public/data/**) are gitignored — too large to commit — and only
+// actually exist in R2. Any code that wants one of these datasets, at build time or runtime,
+// must go through R2 rather than assuming a local file exists.
 export const R2_BASE_URL = "https://pub-88f9b6b7dae846e9b9fe6489e8c253b0.r2.dev";
 
 export function toR2Url(datasetPath) {
-  return R2_BASE_URL + datasetPath.replace("graph_jsons/", "");
+  return R2_BASE_URL + datasetPath;
 }
 
 export function fetchGraphJSONFromR2(datasetPath) {
   return fetchGraphJSON(toR2Url(datasetPath));
 }
 
-// Naming convention for public/data/graph_jsons/annual/per_agency/*.json, mirrored here (and
-// in the R2 bucket) as titled_v2_bills_assoc_{agency}_{weightType}_{yr}_{log}.json — every
-// agency has the full cartesian product of these, so any combination is a valid path.
-export const ANNUAL_WEIGHT_TYPES = ["base", "bill", "agy_bill", "agy"];
+// Naming convention for public/data/nwks_base_weights/*.json and
+// public/data/nwks_spending_weights/*.json, mirrored here (and in the R2 bucket): base weights
+// are final_{agency}_{yr}_infomap.json (no log/nolog split); spending weights are
+// final_{log|nolog}_{agency}_{yr}_infomap.json. Not every agency/year combo exists.
+export const ANNUAL_WEIGHT_TYPES = ["base", "spending"];
 export const ANNUAL_YEARS = Array.from({ length: 22 }, (_, i) => 2000 + i);
 export const LOG_OPTIONS = ["logged", "unlogged"];
 
 export function annualPerAgencyPath(agency, weightType, yr, log) {
-  return `/data/graph_jsons/annual/per_agency/titled_v2_bills_assoc_${agency}_${weightType}_${yr}_${log}.json`;
+  if (weightType === "base") {
+    return `/data/nwks_base_weights/final_${agency}_${yr}_infomap.json`;
+  }
+  const log_str = log === "logged" ? "log" : "nolog";
+  return `/data/nwks_spending_weights/final_${log_str}_${agency}_${yr}_infomap.json`;
 }
 
 // d3.forceLink mutates link.source/target from a plain id into the resolved node object once

@@ -12,7 +12,7 @@ const cache = new Map();
 
 function _data(DATASET_PATH) {
   if (cache.has(DATASET_PATH)) return cache.get(DATASET_PATH);
-  const path = BASE_URL + DATASET_PATH.replace("graph_jsons/", "")
+  const path = BASE_URL + DATASET_PATH
   const promise = fetchGraphJSON(path);
   cache.set(DATASET_PATH, promise);
   return promise;
