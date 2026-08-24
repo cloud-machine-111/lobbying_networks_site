@@ -1,0 +1,227 @@
+---
+import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
+import { ORG_TYPES, orgColorMap } from "../scripts/graph_utils.js";
+
+interface Props {
+    show_controls?: boolean;
+    width?: number;
+}
+// Q - are astro props exactly like react props? are they a feature outside of vanilla js?
+
+const { show_controls = true } = Astro.props;
+const { width = 500} = Astro.props;
+---
+
+{show_controls && (
+        <div style={`width: ${width}px`}>
+            <div class="params">
+                <b>Agency: </b> &nbsp;
+                <select id="af_agency">
+                    {AGENCIES.map((a) => <option value={a.value}>{a.label}</option>)}
+                    <option value={ALL_AGENCIES_VALUE}>All agencies</option>
+                </select>
+                &nbsp;&nbsp;
+                <br>
+                <b>Org type: </b> &nbsp;
+                <span id="af_org_typ" class="checkbox-group">
+                    {ORG_TYPES.map((o) => (
+                        <label class="checkbox-option">
+                            <input type="checkbox" name="af_org_typ" value={o.value} checked />
+                            <span class="swatch" style={`background:${orgColorMap[o.value as keyof typeof orgColorMap]}`}></span>
+                            {o.label}
+                        </label>
+                    ))}
+                </span>
+                &nbsp;&nbsp;
+                <b>Weight type: </b> &nbsp;
+                <select id="af_weight_type">
+                    <option value="base">base</option>
+                    <option value="spending">spending</option>
+                </select>
+                &nbsp;&nbsp;
+                <b>Spending: </b> &nbsp;
+                <select id="af_log">
+                    <option value="logged">log(spending)</option>
+                    <option value="unlogged">plain spending</option>
+                </select>
+            </div>
+        </div>
+    )
+}
+
+
+
+<style>
+    .checkbox-group {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.25em 0.75em;
+        vertical-align: middle;
+    }
+    .checkbox-option {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25em;
+        white-space: nowrap;
+        font-weight: normal;
+    }
+    .swatch {
+        display: inline-block;
+        width: 0.8em;
+        height: 0.8em;
+        border-radius: 2px;
+    }
+    .af_legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25em 1em;
+        font-size: 0.85em;
+        margin-top: 0.5em;
+    }
+    .af_legend .checkbox-option {
+        gap: 0.35em;
+    }
+</style>
+
+<div id="chart" data-width={width} style={`width:${width}px; max-width:100%;`}></div>
+<div id="af_legend" class="af_legend"></div>
+
+<script>
+    import * as d3 from "d3";
+    import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
+    import { orgColorMap, orgTypeLabel, collapseOrgType } from "../scripts/graph_utils.js";
+
+    const container = document.getElementById("chart");
+    if (!container) throw new Error("#chart container not found");
+    const legendEl = document.getElementById("af_legend");
+    if (!legendEl) throw new Error("#af_legend not found");
+
+    const width = Number(container.dataset.width) || 400;
+    const height = Math.round(width * 0.65);
+    const margin = { top: 16, right: 16, bottom: 28, left: 44 };
+
+    const agencySelect = document.getElementById("af_agency") as HTMLSelectElement | null;
+    const weightTypeSelect = document.getElementById("af_weight_type") as HTMLSelectElement | null;
+    const logSelect = document.getElementById("af_log") as HTMLSelectElement | null;
+    const orgTypeCheckboxes = Array.from(
+        document.querySelectorAll<HTMLInputElement>('input[name="af_org_typ"]'),
+    );
+
+    // agency <select> values are the underscored AGENCIES.value strings, but flow_shares CSVs
+    // key rows by the human-readable agency label (or "All agencies" for x_agy).
+    const agencyLabels: Record<string, string> = Object.fromEntries(
+        AGENCIES.map((a) => [a.value, a.label]),
+    );
+    agencyLabels[ALL_AGENCIES_VALUE] = "All agencies";
+
+    interface FlowRow {
+        agency: string;
+        year: number;
+        org_typ: string;
+        flow_share: number;
+    }
+
+    // import.meta.env.BASE_URL includes the site's base path (see astro.config.mjs), so this
+    // resolves correctly both in dev and once deployed under /lobbying_networks_site.
+    const FLOW_SHARES_DIR = `${import.meta.env.BASE_URL}data/flow_shares`;
+
+    function csvPathFor(weightType: string, log: string) {
+        if (weightType === "base") return `${FLOW_SHARES_DIR}/base_weight_flow_shares.csv`;
+        return log === "logged"
+            ? `${FLOW_SHARES_DIR}/spending_weight_log_flow_shares.csv`
+            : `${FLOW_SHARES_DIR}/spending_weight_nolog_flow_shares.csv`;
+    }
+
+    // Parsed CSVs are cached by path so switching agency/org-type controls doesn't
+    // re-fetch data that's already been loaded.
+    const csvCache = new Map<string, Promise<FlowRow[]>>();
+    function loadCsv(path: string): Promise<FlowRow[]> {
+        let entry = csvCache.get(path);
+        if (!entry) {
+            entry = d3.csv(path, (d) => ({
+                agency: d.agency as string,
+                year: +(d.year as string),
+                org_typ: collapseOrgType(d.org_typ as string),
+                flow_share: +(d.flow_share as string),
+            }));
+            csvCache.set(path, entry);
+        }
+        return entry;
+    }
+
+    const svg = d3.select(container).append("svg")
+        .attr("viewBox", [0, 0, width, height])
+        .style("width", "100%")
+        .style("height", "auto");
+
+    const xAxisG = svg.append("g").attr("transform", `translate(0,${height - margin.bottom})`);
+    const yAxisG = svg.append("g").attr("transform", `translate(${margin.left},0)`);
+    const linesG = svg.append("g").attr("fill", "none").attr("stroke-width", 2);
+
+    const line = d3.line<{ year: number; value: number }>()
+        .x((d) => x(d.year))
+        .y((d) => y(d.value));
+
+    let x = d3.scaleLinear().range([margin.left, width - margin.right]);
+    let y = d3.scaleLinear().range([height - margin.bottom, margin.top]);
+
+    async function redraw() {
+        const weightType = weightTypeSelect?.value ?? "base";
+        const log = logSelect?.value ?? "unlogged";
+        const agency = agencySelect?.value ?? ALL_AGENCIES_VALUE;
+        const agencyLabel = agencyLabels[agency] ?? agency;
+        const selectedTypes = orgTypeCheckboxes.filter((c) => c.checked).map((c) => c.value);
+
+        const rows = await loadCsv(csvPathFor(weightType, log));
+        const forAgency = rows.filter((r) => r.agency === agencyLabel);
+
+        const years = d3.extent(forAgency, (r) => r.year) as [number, number];
+        const yearRange = Number.isFinite(years[0])
+            ? d3.range(years[0], years[1] + 1)
+            : [];
+
+        const series = selectedTypes.map((org_typ) => {
+            const byYear = d3.rollup(
+                forAgency.filter((r) => r.org_typ === org_typ),
+                (v) => d3.sum(v, (r) => r.flow_share),
+                (r) => r.year,
+            );
+            return {
+                org_typ,
+                values: yearRange.map((yr) => ({ year: yr, value: byYear.get(yr) ?? 0 })),
+            };
+        });
+
+        x.domain(years[0] !== undefined && Number.isFinite(years[0]) ? years : [2000, 2021]);
+        y.domain([0, d3.max(series.flatMap((s) => s.values.map((v) => v.value))) || 1]).nice();
+
+        xAxisG.call(d3.axisBottom(x).ticks(Math.min(yearRange.length, 10)).tickFormat(d3.format("d")));
+        yAxisG.call(d3.axisLeft(y).ticks(6).tickFormat(d3.format(".0%")));
+
+        linesG.selectAll<SVGPathElement, typeof series[number]>("path")
+            .data(series, (d) => d.org_typ)
+            .join("path")
+            .attr("stroke", (d) => orgColorMap[d.org_typ as keyof typeof orgColorMap] ?? "#cccccc")
+            .attr("d", (d) => line(d.values));
+
+        legendEl.innerHTML = "";
+        for (const org_typ of selectedTypes) {
+            const item = document.createElement("span");
+            item.className = "checkbox-option";
+            const swatch = document.createElement("span");
+            swatch.className = "swatch";
+            swatch.style.background = orgColorMap[org_typ as keyof typeof orgColorMap] ?? "#cccccc";
+            item.append(swatch, document.createTextNode(orgTypeLabel(org_typ)));
+            legendEl.appendChild(item);
+        }
+    }
+
+    [agencySelect, weightTypeSelect, logSelect].forEach((el) => {
+        el?.addEventListener("change", redraw);
+    });
+    orgTypeCheckboxes.forEach((c) => c.addEventListener("change", redraw));
+
+    redraw();
+</script>
+
+

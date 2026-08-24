@@ -1,5 +1,7 @@
 ---
 import { colors } from "../styles/colors";
+
+const { style } = Astro.props;
 ---
 
 <!doctype html>
@@ -12,10 +14,11 @@ import { colors } from "../styles/colors";
 		<meta name="generator" content={Astro.generator} />
 		<title>Networks in Environmental Lobbying</title>
 	</head>
-	<body>
+	<body style={style}>
 		<canvas id="canvas"></canvas>
 		<slot />
 	</body>
+
 </html>
 
 <style is:global define:vars={colors}>
@@ -145,7 +148,7 @@ import { colors } from "../styles/colors";
 		overflow-x: hidden;
 	}
 
-	canvas {
+	#canvas {
 		display: block;
 		position: fixed;
 		top: 0;
@@ -154,6 +157,19 @@ import { colors } from "../styles/colors";
 		height: 100vh;
 		pointer-events: none;
 		z-index: -1;
+	}
+
+	.header {
+		width: 100%;
+		padding: .5rem 0 .5rem .5rem;
+		/* margin: 1rem 3rem; */
+		position: fixed;
+		top: 0px;
+		a {
+			color: #101208;
+			margin: 3vw;
+		}
+		background-color: #d8fc76;
 	}
 
 	/* @media (max-width: 600px) {

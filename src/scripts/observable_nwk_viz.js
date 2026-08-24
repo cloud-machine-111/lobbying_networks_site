@@ -19,7 +19,7 @@ function _data(DATASET_PATH) {
 }
 
 function _NODES_SHOWN(Inputs){return(
-Inputs.range([1, 400], {value: 80, step: 1, label: "Nodes shown"})
+Inputs.range([1, 400], {value: 20, step: 1, label: "Nodes shown"})
 )}
 
 function _chart(d3,data,NODES_SHOWN,invalidation)
@@ -307,7 +307,8 @@ nodes = nodes.filter(d => linkNodeIds.has(d.id));
       .attr("font-size", 13)
       // .text(`${data.metadata.log} on spending`);
       // .text(`weight type: bill`)
-      .text(`${(weight_type == "base") ? "" : `${data.metadata.log ? "log" : "no log"} on spending`}`); // TODO: need to add data.metadata.wt_typ into data
+      .text(`${(data.metadata.weight_type == "base") ? "[Edge weight = no. bills the node pair shares]" : 
+        `[Edge weight = no. bills in common × ${data.metadata.log ? "log(spending)" : "plain spending"}`}]`); // TODO: need to add data.metadata.wt_typ into data
       
   
   svg.append("text")

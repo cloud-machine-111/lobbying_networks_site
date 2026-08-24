@@ -46,10 +46,34 @@ const { path: explicitPath = null } = Astro.props;
     );
   }
 
-  const container = document.getElementById("hero-network");
-  const path = container.dataset.path || randomAnnualPerAgencyPath();
+  // Not every agency/year/weight/log combo exists in the bucket (see graph_utils.js), so a
+  // random pick can 404. Retry with a fresh pick a few times rather than leaving the hero
+  // blank for the whole page load.
+  async function fetchRandomAnnualGraph(maxAttempts = 6) {
+    const tried = new Set();
+    for (let i = 0; i < maxAttempts; i++) {
+      const path = randomAnnualPerAgencyPath();
+      if (tried.has(path)) continue;
+      tried.add(path);
+      try {
+        return await fetchGraphJSONFromR2(path);
+      } catch {
+        // this combo doesn't exist for this agency/year/weight/log pick; try another.
+      }
+    }
+    return null;
+  }
 
-  const data = await fetchGraphJSONFromR2(path);
+  const container = document.getElementById("hero-network");
+  const explicitPath = container.dataset.path || null;
+  const data = explicitPath
+    ? await fetchGraphJSONFromR2(explicitPath)
+    : await fetchRandomAnnualGraph();
+
+  if (!data) {
+    // All retries 404'd; bail out and leave the container empty.
+    throw new Error("nwk_view: no dataset found after retries");
+  }
 
   const nodes = topNodesByFlow(data, 20)
     .map((d) => ({ ...d, org_typ: collapseOrgType(d.org_typ) }));

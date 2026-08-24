@@ -27,9 +27,10 @@ export function fetchGraphJSONFromR2(datasetPath) {
   return fetchGraphJSON(toR2Url(datasetPath));
 }
 
-// Naming convention for public/data/nwks_base_weights/*.json and
-// public/data/nwks_spending_weights/*.json, mirrored here (and in the R2 bucket): base weights
-// are final_{agency}_{yr}_infomap.json (no log/nolog split); spending weights are
+// Naming convention for the R2 bucket's nwks_base_weights/*.json and
+// nwks_spending_weights/*.json objects (no "data/" prefix — that only applies to the local
+// public/data/ mirror used for static assets, not the R2 keys these paths are appended to):
+// base weights are final_{agency}_{yr}_infomap.json (no log/nolog split); spending weights are
 // final_{log|nolog}_{agency}_{yr}_infomap.json. Not every agency/year combo exists.
 export const ANNUAL_WEIGHT_TYPES = ["base", "spending"];
 export const ANNUAL_YEARS = Array.from({ length: 22 }, (_, i) => 2000 + i);
@@ -37,10 +38,10 @@ export const LOG_OPTIONS = ["logged", "unlogged"];
 
 export function annualPerAgencyPath(agency, weightType, yr, log) {
   if (weightType === "base") {
-    return `/data/nwks_base_weights/final_${agency}_${yr}_infomap.json`;
+    return `/nwks_base_weights/final_${agency}_${yr}_infomap.json`;
   }
   const log_str = log === "logged" ? "log" : "nolog";
-  return `/data/nwks_spending_weights/final_${log_str}_${agency}_${yr}_infomap.json`;
+  return `/nwks_spending_weights/final_${log_str}_${agency}_${yr}_infomap.json`;
 }
 
 // d3.forceLink mutates link.source/target from a plain id into the resolved node object once
@@ -112,6 +113,10 @@ export const orgTypeLabels = {
 };
 
 export const orgTypeLabel = (org_typ) => orgTypeLabels[org_typ] ?? org_typ;
+
+// orgTypeLabels as an ordered {value, label} list, for controls (checkboxes, dropdowns) that
+// need to render every collapsed org type rather than just look one label up.
+export const ORG_TYPES = Object.entries(orgTypeLabels).map(([value, label]) => ({ value, label }));
 
 // d3.schemeSet2, inlined so this module has no d3 dependency.
 export const moduleColorScheme = [
