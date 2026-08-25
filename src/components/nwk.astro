@@ -1,0 +1,515 @@
+---
+import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
+import { ORG_TYPES, orgColorMap } from "../scripts/graph_utils.js";
+
+interface Props {
+    show_controls?: boolean;
+    // Toggles the "{agency} — lobbying ties {in year|across all time}" title (and its edge-weight
+    // subtitle) above the chart. Defaults to true; set false in faceted grids where an outer
+    // facet-row-label already names the cell (see faceted_nwk_graphs.astro).
+    show_title?: boolean;
+    // Toggles the org-type color-key legend below the chart. "show" (default) renders it inline;
+    // set "hide" when a shared legend is rendered once outside the grid instead of once per
+    // instance (see faceted_nwk_graphs.astro's <ColorLegend>).
+    display_color_code?: "show" | "hide";
+    width?: number;
+    node_count?: number;
+    agency?: string;
+    weight_type?: "base" | "spending";
+    log?: "logged" | "unlogged";
+    time_frame?: "annual" | "aggregate";
+    year?: number;
+    // CSS selectors for external controls (see annualflow_charts.astro's *_selector idiom) that
+    // this instance should follow instead of its own props/controls. weight_selector points at a
+    // <select> whose option values are WEIGHT_ROWS keys ("base" | "spending_logged" |
+    // "spending_unlogged" — see faceted_nwk_graphs.astro), decomposed into weight_type + log the
+    // same way annualflow_charts.astro does.
+    agency_selector?: string;
+    weight_selector?: string;
+    time_frame_selector?: string;
+    year_selector?: string;
+}
+
+const { show_controls = true, show_title = true, display_color_code = "show" } = Astro.props;
+const { width = 400 } = Astro.props;
+// These are only used when show_controls is false and no corresponding *_selector is given —
+// with controls shown, the <select>/<input> elements are the source of truth and these props are
+// ignored (mirrors annualflow_charts.astro).
+const {
+    agency = ALL_AGENCIES_VALUE,
+    weight_type = "base",
+    log = "unlogged",
+    time_frame = "annual",
+    year = 2011,
+    node_count = 20,
+} = Astro.props;
+const {
+    agency_selector,
+    weight_selector,
+    time_frame_selector,
+    year_selector,
+} = Astro.props;
+---
+
+<div
+    class="nwk-graph"
+    data-agency={agency}
+    data-weight-type={weight_type}
+    data-log={log}
+    data-time-frame={time_frame}
+    data-year={year}
+    data-node-count={node_count}
+    data-agency-selector={agency_selector}
+    data-weight-selector={weight_selector}
+    data-time-frame-selector={time_frame_selector}
+    data-year-selector={year_selector}
+>
+{show_controls && (
+    <div style={`width: ${width}px`}>
+        <div class="params">
+            <b>Agency: </b> &nbsp;
+            <select class="nk_agency">
+                {AGENCIES.map((a) => <option value={a.value}>{a.label}</option>)}
+                <option value={ALL_AGENCIES_VALUE}>All agencies</option>
+            </select>
+            &nbsp;&nbsp;
+            <b>Weight type: </b> &nbsp;
+            <select class="nk_weight_type">
+                <option value="base">base</option>
+                <option value="spending">spending</option>
+            </select>
+            &nbsp;&nbsp;
+            <span class="nk_log_group">
+                <b>Spending: </b> &nbsp;
+                <select class="nk_log">
+                    <option value="logged">log(spending)</option>
+                    <option value="unlogged">plain spending</option>
+                </select>
+            </span>
+            <br />
+            <b>Time frame: </b> &nbsp;
+            <select class="nk_time_frame">
+                <option value="annual">annual</option>
+                <option value="aggregate">aggregate</option>
+            </select>
+            &nbsp;&nbsp;
+            <span class="nk_year_group">
+                <b>Year: </b> &nbsp;
+                <input type="number" class="nk_year" min="2000" max="2021" value={year} />
+            </span>
+            <br />
+            <b>Nodes shown: </b> &nbsp;
+            <input type="range" class="nk_node_count" min="1" max="400" step="1" value={node_count} />
+            &nbsp;<span class="nk_node_count_label">{node_count}</span>
+        </div>
+    </div>
+)}
+
+<style>
+    .nk_title {
+        font-weight: 600;
+        font-size: 0.9em;
+        text-align: center;
+        margin-bottom: 0.25em;
+        /* Wrap onto multiple lines within the chart's own width instead of overflowing it —
+           see annualflow_charts.astro's .af_title for the same reasoning. */
+        overflow-wrap: anywhere;
+    }
+    .color_key {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.25em 1em;
+        margin: 0.35em 0;
+        font-size: 0.8em;
+    }
+    .color_key-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35em;
+        white-space: nowrap;
+    }
+    .color_key-swatch {
+        display: inline-block;
+        width: 0.8em;
+        height: 0.8em;
+        border-radius: 2px;
+    }
+</style>
+
+<!-- .nk_subtitle is injected via .nk_title's innerHTML at runtime (see redraw()'s buildTitle()),
+     so it never gets Astro's scoped data-astro-cid attribute — the rule has to be global to
+     actually reach it. -->
+<style is:global>
+    .nk_title .nk_subtitle {
+        display: block;
+        font-weight: 400;
+        font-style: italic;
+        font-size: 0.85em;
+        opacity: 0.85;
+        margin-top: 0.15em;
+    }
+</style>
+
+<div class="nk_title" style={show_title ? undefined : "display:none"}></div>
+<div class="nk_chart" data-width={width} style={`width:${width}px; max-width:100%;`}></div>
+{display_color_code === "show" && (
+    <div class="color_key">
+        {ORG_TYPES.map((o) => (
+            <span class="color_key-item">
+                <span
+                    class="color_key-swatch"
+                    style={`background:${orgColorMap[o.value as keyof typeof orgColorMap]}`}
+                ></span>
+                {o.label}
+            </span>
+        ))}
+    </div>
+)}
+</div>
+
+<script>
+    // @ts-nocheck -- d3-force mutates plain node objects with x/y at runtime, which TS can't
+    // model here (same tradeoff nwk_view.astro makes).
+    import * as d3 from "d3";
+    import { colors } from "../styles/colors.js";
+    import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
+    import {
+        fetchGraphJSONFromR2,
+        datasetPathFor,
+        topNodesByFlow,
+        linksAmongNodes,
+        idOf,
+        orgColorMap,
+        collapseOrgType,
+        moduleColorScheme,
+        moduleHullData,
+    } from "../scripts/graph_utils.js";
+
+    const agencyLabels: Record<string, string> = Object.fromEntries(
+        AGENCIES.map((a) => [a.value, a.label]),
+    );
+    agencyLabels[ALL_AGENCIES_VALUE] = "All agencies";
+
+    // Decomposes a single WEIGHT_ROWS key (see faceted_nwk_graphs.astro) into the weightType +
+    // log pair redraw() needs, for instances following an external weight_selector.
+    const WEIGHT_KEY_PARAMS: Record<string, { weightType: string; log: string }> = {
+        base: { weightType: "base", log: "unlogged" },
+        spending_logged: { weightType: "spending", log: "logged" },
+        spending_unlogged: { weightType: "spending", log: "unlogged" },
+    };
+
+    const YEAR_MIN = 2000;
+    const YEAR_MAX = 2021;
+    const DEFAULT_YEAR = 2011;
+
+    // Initials shown on top-10-by-flow nodes, e.g. "American Petroleum Institute" -> "AP" —
+    // matches observable_nwk_viz.js's getInitials so the two views read the same way.
+    function getInitials(name: string) {
+        if (!name) return "";
+        return name
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((w) => w[0].toUpperCase())
+            .join("");
+    }
+
+    // One floating tooltip shared across every Nwk instance on the page (there can be dozens in
+    // a faceted grid), rather than one per instance. Styled to match observable_nwk_viz.js's
+    // full-explorer node tooltip.
+    let sharedTooltip: any = null;
+    function getTooltip() {
+        if (!sharedTooltip) {
+            sharedTooltip = d3.select("body").append("div")
+                .attr("class", "nk-tooltip")
+                .style("position", "absolute")
+                .style("pointer-events", "none")
+                .style("background", "white")
+                .style("color", "#111")
+                .style("border", "1px solid #ccc")
+                .style("border-radius", "4px")
+                .style("padding", "4px 8px")
+                .style("font-size", "12px")
+                .style("box-shadow", "0 1px 4px rgba(0,0,0,0.2)")
+                .style("z-index", 1000)
+                .style("opacity", 0);
+        }
+        return sharedTooltip;
+    }
+
+    // Parsed graph JSONs are cached by path so switching controls doesn't re-fetch data that's
+    // already been loaded (mirrors annualflow_charts.astro's csvCache).
+    const graphCache = new Map<string, Promise<any>>();
+    function loadGraph(path: string) {
+        let entry = graphCache.get(path);
+        if (!entry) {
+            entry = fetchGraphJSONFromR2(path);
+            graphCache.set(path, entry);
+        }
+        return entry;
+    }
+
+    function setupInstance(root: HTMLElement) {
+        const container = root.querySelector<HTMLElement>(".nk_chart");
+        if (!container) throw new Error(".nk_chart container not found");
+        const titleEl = root.querySelector<HTMLElement>(".nk_title");
+
+        const width = Number(container.dataset.width) || 400;
+        const height = width;
+
+        const agencySelect = root.querySelector<HTMLSelectElement>(".nk_agency");
+        const weightTypeSelect = root.querySelector<HTMLSelectElement>(".nk_weight_type");
+        const logSelect = root.querySelector<HTMLSelectElement>(".nk_log");
+        const logGroup = root.querySelector<HTMLElement>(".nk_log_group");
+        const timeFrameSelect = root.querySelector<HTMLSelectElement>(".nk_time_frame");
+        const yearInput = root.querySelector<HTMLInputElement>(".nk_year");
+        const yearGroup = root.querySelector<HTMLElement>(".nk_year_group");
+        const nodeCountInput = root.querySelector<HTMLInputElement>(".nk_node_count");
+        const nodeCountLabel = root.querySelector<HTMLElement>(".nk_node_count_label");
+
+        // Used only when the corresponding control isn't rendered (show_controls=false) and no
+        // *_selector is given for that field; live selector/control values always take
+        // precedence over these.
+        const fixedAgency = root.dataset.agency;
+        const fixedWeightType = root.dataset.weightType;
+        const fixedLog = root.dataset.log;
+        const fixedTimeFrame = root.dataset.timeFrame;
+        const fixedYear = root.dataset.year ? Number(root.dataset.year) : undefined;
+        const fixedNodeCount = root.dataset.nodeCount ? Number(root.dataset.nodeCount) : 20;
+
+        function externalControl<T extends Element>(selector?: string) {
+            return selector ? document.querySelector<T>(selector) : null;
+        }
+        const externalAgency = externalControl<HTMLSelectElement>(root.dataset.agencySelector);
+        const externalWeight = externalControl<HTMLSelectElement>(root.dataset.weightSelector);
+        const externalTimeFrame = externalControl<HTMLSelectElement>(root.dataset.timeFrameSelector);
+        const externalYear = externalControl<HTMLInputElement>(root.dataset.yearSelector);
+
+        // Mirrors explorer.astro's updateLogVisibility/updateYearVisibility: the log sub-control
+        // only matters for "spending" weight, the year sub-control only for "annual" time frame.
+        function updateLogVisibility() {
+            if (!logGroup) return;
+            const weightType = weightTypeSelect?.value ?? fixedWeightType ?? "base";
+            logGroup.style.display = weightType === "spending" ? "" : "none";
+        }
+        function updateYearVisibility() {
+            if (!yearGroup) return;
+            const timeFrame = timeFrameSelect?.value ?? fixedTimeFrame ?? "annual";
+            yearGroup.style.display = timeFrame === "annual" ? "" : "none";
+        }
+        updateLogVisibility();
+        updateYearVisibility();
+
+        function resolveParams() {
+            const weight = externalWeight ? WEIGHT_KEY_PARAMS[externalWeight.value] : undefined;
+            const weightType = weight?.weightType ?? weightTypeSelect?.value ?? fixedWeightType ?? "base";
+            const log = weight?.log ?? logSelect?.value ?? fixedLog ?? "unlogged";
+            const agency = externalAgency?.value ?? agencySelect?.value ?? fixedAgency ?? ALL_AGENCIES_VALUE;
+            const timeFrame = externalTimeFrame?.value ?? timeFrameSelect?.value ?? fixedTimeFrame ?? "annual";
+
+            const year = Number(externalYear?.value ?? yearInput?.value ?? fixedYear ?? DEFAULT_YEAR);
+
+            const nodeCount = Number(nodeCountInput?.value ?? fixedNodeCount);
+            return { agency, weightType, log, timeFrame, year, nodeCount };
+        }
+
+        function buildTitle(agency: string, timeFrame: string, year: number, weightType?: string, log?: string) {
+            const agencyLabel = agencyLabels[agency] ?? agency;
+            const periodText = timeFrame === "aggregate" ? "across all time" : `in ${year}`;
+            let html = `${agencyLabel} — lobbying ties ${periodText}`;
+            if (weightType) {
+                const weightText = weightType === "base"
+                    ? "edge weight = bills in common"
+                    : `edge weight = bills in common × ${log === "logged" ? "log(spending)" : "spending"}`;
+                html += `<span class="nk_subtitle">${weightText}</span>`;
+            }
+            return html;
+        }
+
+        function showEmptyState(agency: string, timeFrame: string, year: number) {
+            simulation?.stop();
+            hullGroup.selectAll("*").remove();
+            linkGroup.selectAll("*").remove();
+            nodeGroup.selectAll("*").remove();
+            if (titleEl) {
+                titleEl.innerHTML = buildTitle(agency, timeFrame, year)
+                    + `<span class="nk_subtitle">no dataset for this combination</span>`;
+            }
+        }
+
+        const org_color = d3.scaleOrdinal()
+            .domain(Object.keys(orgColorMap))
+            .range(Object.values(orgColorMap))
+            .unknown("#cccccc");
+
+        // Neon top-10 styling below mirrors observable_nwk_viz.js's full explorer, so this
+        // faceted view reads as the same visual language — minus the dark background (this
+        // chart sits on the page background instead), dragging, zoom/pan, and the side panel,
+        // which don't fit a small facet cell.
+        const svg = d3.select(container).append("svg")
+            .attr("viewBox", [0, 0, width, height])
+            .style("width", "100%")
+            .style("height", "auto");
+
+        const hullGroup = svg.append("g");
+        const linkGroup = svg.append("g").attr("stroke", colors.linkStroke).attr("stroke-opacity", 0.5);
+        const nodeGroup = svg.append("g").attr("stroke-width", 0.5);
+
+        let simulation: d3.Simulation<any, any> | null = null;
+
+        async function redraw() {
+            const { agency, weightType, log, timeFrame, year, nodeCount } = resolveParams();
+            const path = datasetPathFor(agency, weightType, timeFrame, year, log);
+
+            let data;
+            try {
+                data = await loadGraph(path);
+            } catch {
+                // Not every agency/weight/year/log combination exists (see graph_utils.js).
+                showEmptyState(agency, timeFrame, year);
+                return;
+            }
+
+            const topNodes = topNodesByFlow(data, nodeCount)
+                .map((d) => ({ ...d, org_typ: collapseOrgType(d.org_typ) }));
+
+            const moduleFlowTotals = d3.rollup(topNodes, (v) => d3.sum(v, (d) => d.flow), (d) => d.module_id);
+            const activeModules = [...moduleFlowTotals.entries()]
+                .filter(([, total]) => total > 0)
+                .sort((a, b) => b[1] - a[1])
+                .map(([module_id]) => module_id);
+            const activeModuleSet = new Set(activeModules);
+
+            let nodes = topNodes.filter((d) => activeModuleSet.has(d.module_id));
+            const links = linksAmongNodes(data.links, nodes)
+                .filter((l) => Array.isArray(l.bills) && l.bills.length > 0);
+            const linkNodeIds = new Set(links.flatMap((l) => [idOf(l.source), idOf(l.target)]));
+            nodes = nodes.filter((d) => linkNodeIds.has(d.id));
+
+            if (!nodes.length) {
+                showEmptyState(agency, timeFrame, year);
+                return;
+            }
+
+            const radius = d3.scaleSqrt()
+                .domain([0, d3.max(nodes, (d) => d.flow) || 1])
+                .range([1, Math.max(4, width * 0.025)]);
+            const module_color = d3.scaleOrdinal(moduleColorScheme).domain(activeModules);
+
+            const moduleCenters = new Map(
+                activeModules.map((m, i) => {
+                    const angle = (i / activeModules.length) * 2 * Math.PI;
+                    return [m, {
+                        x: width / 2 + width * 0.28 * Math.cos(angle),
+                        y: height / 2 + height * 0.28 * Math.sin(angle),
+                    }];
+                }),
+            );
+
+            // Top-10-by-flow nodes within each module get the neon "important node" stroke and
+            // an initials label, same idea as observable_nwk_viz.js.
+            const top10FlowIds = new Set(
+                d3.rollups(nodes, (g) => [...g].sort((a, b) => b.flow - a.flow).slice(0, 10).map((d) => d.id), (d) => d.module_id)
+                    .flatMap(([, ids]) => ids),
+            );
+
+            simulation?.stop();
+
+            const link = linkGroup.selectAll<SVGLineElement, any>("line")
+                .data(links, (d: any) => `${idOf(d.source)}-${idOf(d.target)}`)
+                .join("line")
+                .attr("stroke-width", (d: any) => Math.sqrt(d.value));
+
+            const node = nodeGroup.selectAll<SVGCircleElement, any>("circle")
+                .data(nodes, (d: any) => d.id)
+                .join("circle")
+                .attr("r", (d: any) => radius(d.flow))
+                .attr("fill", (d: any) => org_color(d.org_typ))
+                .attr("stroke", (d: any) => (top10FlowIds.has(d.id) ? colors.neonColor : colors.nodeStroke))
+                .attr("stroke-width", (d: any) => (top10FlowIds.has(d.id) ? 1.8 : 0.3))
+                .on("mouseover", (event: MouseEvent, d: any) => {
+                    getTooltip().style("opacity", 1).html(`<b>${d.name}</b><br>Flow: ${d.flow}`);
+                })
+                .on("mousemove", (event: MouseEvent) => {
+                    getTooltip().style("left", `${event.pageX + 12}px`).style("top", `${event.pageY - 20}px`);
+                })
+                .on("mouseout", () => {
+                    getTooltip().style("opacity", 0);
+                });
+
+            const labels = nodeGroup.selectAll<SVGTextElement, any>("text")
+                .data(nodes.filter((d) => top10FlowIds.has(d.id)), (d: any) => d.id)
+                .join("text")
+                .attr("text-anchor", "middle")
+                .attr("dy", "0.32em")
+                .attr("font-weight", "bold")
+                .attr("font-size", (d: any) => Math.max(7, Math.min(10, radius(d.flow) * 0.75)))
+                .attr("fill", "#262f16")
+                .attr("paint-order", "stroke fill")
+                .attr("pointer-events", "none")
+                .text((d: any) => getInitials(d.name));
+
+            // d3-force gives brand-new nodes (no x/y yet) a default initial position clustered
+            // around (0, 0) — the top-left corner of this [0, 0, width, height] viewBox, not its
+            // center. Left alone, every node visibly launches from the top-left corner and flies
+            // out to its module center as the simulation settles. Seeding x/y at the node's
+            // module center up front (with a little jitter so forceManyBody has something to
+            // push apart) skips that flight entirely.
+            for (const d of nodes as any[]) {
+                const center = moduleCenters.get(d.module_id);
+                d.x = center.x + (Math.random() - 0.5) * 10;
+                d.y = center.y + (Math.random() - 0.5) * 10;
+            }
+
+            simulation = d3.forceSimulation(nodes)
+                .alphaDecay(0.05)
+                .velocityDecay(0.6)
+                .force("link", d3.forceLink(links).id((d: any) => d.id))
+                .force("charge", d3.forceManyBody().strength(-Math.max(60, width * 0.6)))
+                .force("x", d3.forceX((d: any) => moduleCenters.get(d.module_id).x).strength(0.5))
+                .force("y", d3.forceY((d: any) => moduleCenters.get(d.module_id).y).strength(0.5))
+                .on("tick", () => {
+                    link.attr("x1", (d: any) => d.source.x).attr("y1", (d: any) => d.source.y)
+                        .attr("x2", (d: any) => d.target.x).attr("y2", (d: any) => d.target.y);
+                    node.attr("cx", (d: any) => d.x).attr("cy", (d: any) => d.y);
+                    labels.attr("x", (d: any) => d.x).attr("y", (d: any) => d.y);
+
+                    hullGroup.selectAll<SVGCircleElement, any>("circle")
+                        .data(moduleHullData(nodes, Math.max(6, width * 0.03)), (d: any) => d.module_id)
+                        .join("circle")
+                        .attr("cx", (d: any) => d.cx).attr("cy", (d: any) => d.cy).attr("r", (d: any) => d.r)
+                        .attr("fill", (d: any) => module_color(d.module_id))
+                        .attr("fill-opacity", 0.3);
+                });
+
+            // Nodes aren't draggable here (unlike the full explorer) — this is a small,
+            // read-only facet view, so no makeDragBehavior call.
+
+            if (titleEl) titleEl.innerHTML = buildTitle(agency, timeFrame, year, weightType, log);
+        }
+
+        [agencySelect, weightTypeSelect, logSelect, timeFrameSelect, yearInput].forEach((el) => {
+            el?.addEventListener("change", () => {
+                updateLogVisibility();
+                updateYearVisibility();
+                redraw();
+            });
+        });
+        nodeCountInput?.addEventListener("input", () => {
+            if (nodeCountLabel) nodeCountLabel.textContent = nodeCountInput.value;
+        });
+        nodeCountInput?.addEventListener("change", redraw);
+
+        externalAgency?.addEventListener("change", redraw);
+        externalWeight?.addEventListener("change", redraw);
+        externalTimeFrame?.addEventListener("change", redraw);
+        externalYear?.addEventListener("change", redraw);
+
+        redraw();
+    }
+
+    document
+        .querySelectorAll<HTMLElement>(".nwk-graph")
+        .forEach((root) => setupInstance(root));
+</script>

@@ -225,7 +225,7 @@ import FacetedNwks from "../components/faceted_nwk_graphs.astro";
 
       document
         .getElementById("screenshot-btn")
-        .addEventListener("click", async () => {
+        ?.addEventListener("click", async () => {
           const node = document.getElementById("chart-container");
           try {
             const dataUrl = await toPng(node, {

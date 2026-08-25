@@ -1,11 +1,13 @@
 // Shared data + logic for the lobbying-network graph views: the hero preview
-// (nwk_view.astro) and the full explorer chart (observable_nwk_viz.js). Keeping this here
-// means the two views stay in sync on node/link selection and color-coding without
-// reimplementing the same logic twice.
+// (nwk_view.astro), the faceted mini-network (nwk.astro), and the full explorer chart
+// (observable_nwk_viz.js). Keeping this here means the views stay in sync on node/link
+// selection and color-coding without reimplementing the same logic twice.
 //
 // No d3 import here on purpose: observable_nwk_viz.js receives d3 injected by the Observable
 // runtime rather than importing it, so anything this module needs from d3 (schemeSet2) is
 // inlined as data and turned into a scale by each caller with its own local d3.
+
+import { ALL_AGENCIES_VALUE } from "./agencies.js";
 
 export function fetchGraphJSON(path) {
   return fetch(path).then((r) => {
@@ -42,6 +44,16 @@ export function annualPerAgencyPath(agency, weightType, yr, log) {
   }
   const log_str = log === "logged" ? "log" : "nolog";
   return `/nwks_spending_weights/final_${log_str}_${agency}_${yr}_infomap.json`;
+}
+
+// Like annualPerAgencyPath, but also handles the two cases explorer.astro's own inline
+// buildDatasetPath deals with: the "All agencies" option is filed under all_agys rather than
+// its raw ALL_AGENCIES_VALUE, and an "aggregate" time frame collapses the year into a fixed
+// "aggregate" period instead of a specific yr. nwk.astro is the other consumer of this shape.
+export function datasetPathFor(agency, weightType, timeFrame, yr, log) {
+  const agy_file_str = agency === ALL_AGENCIES_VALUE ? "all_agys" : agency;
+  const period = timeFrame === "aggregate" ? "aggregate" : yr;
+  return annualPerAgencyPath(agy_file_str, weightType, period, log);
 }
 
 // d3.forceLink mutates link.source/target from a plain id into the resolved node object once

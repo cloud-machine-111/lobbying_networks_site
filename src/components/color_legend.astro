@@ -1,0 +1,58 @@
+---
+// A single shared org-type color-key legend, meant to be rendered once above a grid of <Nwk>
+// instances that each have display_color_code="hide" (see faceted_nwk_graphs.astro) rather than
+// repeating the same legend under every chart in the grid.
+import { ORG_TYPES, orgColorMap } from "../scripts/graph_utils.js";
+
+interface Props {
+    question?: string;
+}
+const { question = "What do the node colors mean?" } = Astro.props;
+---
+
+<div class="color_legend">
+    <div class="color_legend-question">{question}</div>
+    <div class="color_key">
+        {ORG_TYPES.map((o) => (
+            <span class="color_key-item">
+                <span
+                    class="color_key-swatch"
+                    style={`background:${orgColorMap[o.value as keyof typeof orgColorMap]}`}
+                ></span>
+                {o.label}
+            </span>
+        ))}
+    </div>
+</div>
+
+<style>
+    .color_legend {
+        text-align: center;
+        margin: 0.5em 0 1em;
+    }
+    .color_legend-question {
+        font-style: italic;
+        font-size: 0.85em;
+        color: var(--lightBrown);
+        margin-bottom: 0.35em;
+    }
+    .color_key {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.25em 1em;
+        font-size: 0.8em;
+    }
+    .color_key-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35em;
+        white-space: nowrap;
+    }
+    .color_key-swatch {
+        display: inline-block;
+        width: 0.8em;
+        height: 0.8em;
+        border-radius: 2px;
+    }
+</style>

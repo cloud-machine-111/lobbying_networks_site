@@ -12,6 +12,12 @@ interface Props {
     // CSS selector for an external "normalize y-axis" checkbox (see faceted_views.astro) that
     // this instance should follow. Left unset, the chart auto-scales its y-axis to the data.
     normalize_checkbox_selector?: string;
+    // CSS selector for an external <select> whose option values are "base" | "spending_logged" |
+    // "spending_unlogged" (see faceted_flow_graphs.astro's WEIGHT_ROWS) — a single control this
+    // instance follows for both weight_type and spending at once. Takes precedence over the
+    // weight_type/spending props below when set; left unset, those props (or show_controls's own
+    // .af_weight_type/.af_log selects) are used instead.
+    weight_selector?: string;
 }
 // Q - are astro props exactly like react props? are they a feature outside of vanilla js?
 
@@ -25,7 +31,7 @@ const {
     spending = "unlogged",
     agency = ALL_AGENCIES_VALUE,
 } = Astro.props;
-const { normalize_checkbox_selector } = Astro.props;
+const { normalize_checkbox_selector, weight_selector } = Astro.props;
 ---
 
 <div
@@ -35,6 +41,7 @@ const { normalize_checkbox_selector } = Astro.props;
     data-spending={spending}
     data-agency={agency}
     data-normalize-selector={normalize_checkbox_selector}
+    data-weight-selector={weight_selector}
 >
 {show_controls && (
         <div style={`width: ${width}px`}>
@@ -134,6 +141,14 @@ const { normalize_checkbox_selector } = Astro.props;
     // const FLOW_SHARES_DIR = `${import.meta.env.BASE_URL}data/flow_shares`;
     const FLOW_SHARES_DIR = 'https://pub-88f9b6b7dae846e9b9fe6489e8c253b0.r2.dev/flow_shares'
 
+    // Decomposes a single WEIGHT_ROWS key (see faceted_flow_graphs.astro) into the weightType +
+    // log pair redraw() needs, for instances following an external weight_selector.
+    const WEIGHT_KEY_PARAMS: Record<string, { weightType: string; log: string }> = {
+        base: { weightType: "base", log: "unlogged" },
+        spending_logged: { weightType: "spending", log: "logged" },
+        spending_unlogged: { weightType: "spending", log: "unlogged" },
+    };
+
     function csvPathFor(weightType: string, log: string) {
         if (weightType === "base") return `${FLOW_SHARES_DIR}/base_weight_flow_shares.csv`;
         return log === "logged"
@@ -204,6 +219,14 @@ const { normalize_checkbox_selector } = Astro.props;
             ? document.querySelector<HTMLInputElement>(normalizeSelector)
             : null;
 
+        // An external combined weight-style <select> (see faceted_flow_graphs.astro's
+        // WEIGHT_ROWS / annualflow_charts.astro's weight_selector prop) that, if present, takes
+        // precedence over both weightTypeSelect/logSelect and fixedWeightType/fixedSpending.
+        const weightSelectorAttr = root.dataset.weightSelector;
+        const externalWeightSelect = weightSelectorAttr
+            ? document.querySelector<HTMLSelectElement>(weightSelectorAttr)
+            : null;
+
         const svg = d3.select(container).append("svg")
             .attr("viewBox", [0, 0, width, height])
             .style("width", "100%")
@@ -232,8 +255,11 @@ const { normalize_checkbox_selector } = Astro.props;
         }
 
         async function redraw() {
-            const weightType = weightTypeSelect?.value ?? fixedWeightType ?? "base";
-            const log = logSelect?.value ?? fixedSpending ?? "unlogged";
+            const externalWeight = externalWeightSelect
+                ? WEIGHT_KEY_PARAMS[externalWeightSelect.value]
+                : undefined;
+            const weightType = externalWeight?.weightType ?? weightTypeSelect?.value ?? fixedWeightType ?? "base";
+            const log = externalWeight?.log ?? logSelect?.value ?? fixedSpending ?? "unlogged";
             const agency = agencySelect?.value ?? fixedAgency ?? ALL_AGENCIES_VALUE;
             const agencyLabel = agencyLabels[agency] ?? agency;
             const selectedTypes = orgTypeCheckboxes.length
@@ -289,6 +315,7 @@ const { normalize_checkbox_selector } = Astro.props;
         });
         orgTypeCheckboxes.forEach((c) => c.addEventListener("change", redraw));
         normalizeCheckbox?.addEventListener("change", redraw);
+        externalWeightSelect?.addEventListener("change", redraw);
 
         // Grid facet cells and the shared normalize checkbox can change this chart's rendered
         // width without firing any of the listeners above, so watch it directly.

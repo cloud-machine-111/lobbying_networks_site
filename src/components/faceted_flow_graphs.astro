@@ -85,6 +85,14 @@ const AGENCY_ROWS = [
         <option value={"individually"}> individually</option>
     </select>
     &nbsp;&nbsp;
+
+    <span class="weight_select_group">
+        <b>Weight style: </b> &nbsp;
+        <select class="flow_ag_weight">
+            {WEIGHT_ROWS.map((row) => <option value={row.key}>{row.label}</option>)}
+        </select>
+        &nbsp;&nbsp;
+    </span>
     <!-- <br /> -->
 
     <div class="color_key">
@@ -184,8 +192,7 @@ const AGENCY_ROWS = [
                     show_controls={false}
                     width={320}
                     org_typ={ALL_ORG_TYPES}
-                    weight_type="base"
-                    spending="unlogged"
+                    weight_selector=".flow_ag_weight"
                     agency={row.agency}
                 />
             </div>
@@ -208,8 +215,7 @@ const AGENCY_ROWS = [
                                 show_controls={false}
                                 width={MINI_WIDTH}
                                 org_typ={[org.value]}
-                                weight_type="base"
-                                spending="unlogged"
+                                weight_selector=".flow_ag_weight"
                                 agency={row.agency}
                                 normalize_checkbox_selector=".normalize_y"
                             />
@@ -226,6 +232,12 @@ const AGENCY_ROWS = [
         display: none;
     }
     .normalize_group.active {
+        display: inline;
+    }
+    .weight_select_group {
+        display: none;
+    }
+    .weight_select_group.active {
         display: inline;
     }
     .facet-block {
@@ -290,6 +302,8 @@ const AGENCY_ROWS = [
         );
         const normalizeGroup =
             root.querySelector<HTMLElement>(".normalize_group");
+        const weightSelectGroup =
+            root.querySelector<HTMLElement>(".weight_select_group");
         if (!forEachSelect || !orgViewSelect || !blocks.length) return;
 
         function updateVisibleBlock() {
@@ -306,6 +320,9 @@ const AGENCY_ROWS = [
                 "active",
                 orgView === "individually",
             );
+            // The weight selector only matters when faceting by agency — faceting by weight
+            // style already shows base/spending(log)/spending(nolog) side by side.
+            weightSelectGroup?.classList.toggle("active", forEach === "agency");
         }
 
         forEachSelect.addEventListener("change", updateVisibleBlock);
