@@ -4,7 +4,8 @@ import Layout from "../layouts/Layout.astro";
 import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 import Header from "../components/Header.astro";
 import AnnualFlowChart from "../components/annualflow_charts.astro"
-import FacetedViews from "../components/faceted_views.astro"
+import FacetedFlows from "../components/faceted_flow_graphs.astro"
+import FacetedNwks from "../components/faceted_nwk_graphs.astro"
 // Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
 // Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
 ---
@@ -74,11 +75,39 @@ import FacetedViews from "../components/faceted_views.astro"
     <br><br>
     <h2><i>2. flow through time</i></h2>
     <br>
-    <!-- <AnnualFlowChart show_controls={true}/>
 
-    <AnnualFlowChart show_controls={false}/> -->
+    <AnnualFlowChart show_controls={true}/> 
 
-    <FacetedViews />
+
+    <h2><i>3. Faceted figures</i></h2>
+    Explore <a href="#facet-flow">flow through time</a> &nbsp · &nbsp
+    Explore <a href="#facet-nwks">networks through time</a>
+
+    <div id="facet-flow" class="facet-section">
+      <FacetedFlows />
+    </div>
+    <div id="facet-nwks" class="facet-section">
+      <FacetedNwks />
+    </div>
+
+    <style>
+      .facet-section {
+        display: none;
+      }
+    </style>
+
+    <script>
+      function showFacetSection() {
+        document
+          .querySelectorAll<HTMLElement>(".facet-section")
+          .forEach((el) => {
+            el.style.display = `#${el.id}` === window.location.hash ? "block" : "none";
+          });
+      }
+
+      window.addEventListener("hashchange", showFacetSection);
+      showFacetSection();
+    </script>
 
     <br>
     <script type="module">

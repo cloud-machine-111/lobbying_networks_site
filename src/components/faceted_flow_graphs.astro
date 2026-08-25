@@ -1,4 +1,5 @@
 ---
+import Layout from "../layouts/Layout.astro";
 import { colors } from "../styles/colors";
 import AnnualFlowChart from "../components/annualflow_charts.astro";
 import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
@@ -37,7 +38,7 @@ const AGENCY_ROWS = [
     },
 ];
 ---
-
+<Layout>
 <style>
     .callout {
         margin: 15 0;
@@ -68,12 +69,9 @@ const AGENCY_ROWS = [
         border-radius: 2px;
     }
 </style>
-<!--
-  Hi! This component should give the faceted views for (1) flow through time, and (2) networks.
-  We'll start w/ flow through time.
--->
-
-<h2>Facet</h2>
+  <div style="font-style: italic; margin: 2em 0em; color: var(--lightBrown)">
+    A short description of our faceted flow graphs. A short description of our faceted flow graphs. A short description of our faceted flow graphs. 
+</div>
 
 <div class="params">
     <b>For each </b> &nbsp;
@@ -323,3 +321,4 @@ const AGENCY_ROWS = [
 </script>
 
 <br />
+</Layout>
