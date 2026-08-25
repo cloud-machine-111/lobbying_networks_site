@@ -131,7 +131,8 @@ const { normalize_checkbox_selector } = Astro.props;
 
     // import.meta.env.BASE_URL includes the site's base path (see astro.config.mjs), so this
     // resolves correctly both in dev and once deployed under /lobbying_networks_site.
-    const FLOW_SHARES_DIR = `${import.meta.env.BASE_URL}data/flow_shares`;
+    // const FLOW_SHARES_DIR = `${import.meta.env.BASE_URL}data/flow_shares`;
+    const FLOW_SHARES_DIR = 'https://pub-88f9b6b7dae846e9b9fe6489e8c253b0.r2.dev/flow_shares'
 
     function csvPathFor(weightType: string, log: string) {
         if (weightType === "base") return `${FLOW_SHARES_DIR}/base_weight_flow_shares.csv`;
