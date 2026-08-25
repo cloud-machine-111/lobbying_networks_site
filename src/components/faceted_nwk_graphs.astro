@@ -1,17 +1,333 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { colors } from "../styles/colors";
-import AnnualFlowChart from "../components/annualflow_charts.astro";
+import Nwk from "../components/nwk.astro";
 import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
-import { ORG_TYPES, orgTypeLabel, orgColorMap } from "../scripts/graph_utils.js";
+
+// nwk.astro is still an empty stub — this file wires up the facet controls and the props/
+// selectors that whichever `Nwk` implementation lands there is expected to read. Expected
+// contract (mirrors explorer.astro's inputs, plus AnnualFlowChart's `*_selector` idiom for
+// controls shared across several chart instances — see annualflow_charts.astro's
+// `normalize_checkbox_selector`):
+//
+//   agency?: string                 weight_type?: "base" | "spending"
+//   log?: "logged" | "unlogged"     time_frame?: "annual" | "aggregate"
+//   year?: number                   nodes_shown?: number
+//   width?: number                  show_controls?: boolean
+//   agency_selector?: string        weight_selector?: string
+//   time_frame_selector?: string    year_selector?: string
+//   year_start_selector?: string    year_end_selector?: string
+//
+// A `*_selector` prop points at an external control (rendered below, outside the <Nwk>
+// instance) that the component is expected to read on mount and re-read on "change"; a plain
+// prop of the same name is the fixed value used when no selector is given. This lets several
+// <Nwk> instances share one set of controls instead of each needing its own.
+//
+// `weight_selector` points at a <select> whose option values are WEIGHT_ROWS keys ("base" |
+// "spending_logged" | "spending_unlogged") — Nwk is expected to decompose that single value into
+// weight_type + log itself, the same way WEIGHT_ROWS below decomposes it for the fixed-prop case.
+
+const ALL_AGENCY_ROWS = [
+    ...AGENCIES.map((a) => ({ key: a.value, label: a.label, agency: a.value })),
+    { key: ALL_AGENCIES_VALUE, label: "All agencies", agency: ALL_AGENCIES_VALUE },
+];
+
+const WEIGHT_ROWS = [
+    { key: "base", label: "base", weight_type: "base" as const, log: "unlogged" as const },
+    { key: "spending_logged", label: "spending (log)", weight_type: "spending" as const, log: "logged" as const },
+    { key: "spending_unlogged", label: "spending (unlogged)", weight_type: "spending" as const, log: "unlogged" as const },
+];
+
+// "nodes shown" is deliberately excluded from every control on this page (see the comments
+// this file started with) — every faceted <Nwk> below is pinned to the same node count so the
+// facets stay comparable, matching topNodesByFlow's default in nwk_view.astro.
+const DEFAULT_NODES_SHOWN = 20;
+
+const MINI_WIDTH = 180;
+const GRID_WIDTH = 320;
+
+// Dataset only covers these years; the third facet's "single snapshot" controls default to a
+// year in the middle of the range rather than either edge.
+const YEAR_MIN = 2000;
+const YEAR_MAX = 2021;
+const DEFAULT_YEAR = 2011;
 ---
 <Layout>
-<h3> How do networks change temporally? </h3>
+<style>
+    .checkbox-group {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.25em 0.75em;
+        vertical-align: middle;
+    }
+    .checkbox-option {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25em;
+        white-space: nowrap;
+        font-weight: normal;
+    }
+    .facet-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.5em 1em;
+    }
+    .facet-cell {
+        min-width: 0;
+    }
+    .facet-cell.hidden {
+        display: none;
+    }
+    .facet-row-label {
+        font-size: 0.8em;
+        font-style: italic;
+        text-align: center;
+        color: var(--lightBrown);
+        opacity: 0.8;
+    }
+</style>
 
-<h3> How does the same network vary across weight types? </h3>
+<section class="facet-panel">
+    <h3> How do networks change temporally? </h3>
+    <div class="params tf_params">
+        <b>Agency: </b> &nbsp;
+        <span class="checkbox-group">
+            {ALL_AGENCY_ROWS.map((row) => (
+                <label class="checkbox-option">
+                    <input
+                        type="checkbox"
+                        class="tf_agency_input"
+                        value={row.agency}
+                        checked={row.agency === ALL_AGENCIES_VALUE}
+                    />
+                    {row.label}
+                </label>
+            ))}
+        </span>
+        <br /><br />
 
-<h3> In a single snapshot of time, how do networks vary across agencies? </h3>
+        <b>Weight style: </b> &nbsp;
+        <span class="checkbox-group">
+            {WEIGHT_ROWS.map((row) => (
+                <label class="checkbox-option">
+                    <input
+                        type="checkbox"
+                        class="tf_weight_input"
+                        value={row.key}
+                        checked={row.key === "base"}
+                    />
+                    {row.label}
+                </label>
+            ))}
+        </span>
+        <br /><br />
+
+        <b>Start year: </b> &nbsp;
+        <input type="number" class="tf_start_yr year-input" min={YEAR_MIN} max={YEAR_MAX} value={YEAR_MIN} />
+        &nbsp;&nbsp;
+        <b>End year: </b> &nbsp;
+        <input type="number" class="tf_end_yr year-input" min={YEAR_MIN} max={YEAR_MAX} value={YEAR_MAX} />
+    </div>
+
+    <div class="facet-grid">
+        {ALL_AGENCY_ROWS.map((agencyRow) =>
+            WEIGHT_ROWS.map((weightRow) => (
+                <div
+                    class="facet-cell"
+                    data-agency={agencyRow.agency}
+                    data-weight-key={weightRow.key}
+                >
+                    <div class="facet-row-label">{agencyRow.label} — {weightRow.label}</div>
+                    <Nwk
+                        agency={agencyRow.agency}
+                        weight_type={weightRow.weight_type}
+                        log={weightRow.log}
+                        time_frame="annual"
+                        year_start_selector=".tf_start_yr"
+                        year_end_selector=".tf_end_yr"
+                        nodes_shown={DEFAULT_NODES_SHOWN}
+                        width={MINI_WIDTH}
+                        show_controls={false}
+                    />
+                </div>
+            )),
+        )}
+    </div>
+</section>
+
+<script>
+    // Cross-facets on two dimensions at once (agency x weight style): a grid cell stays visible
+    // only while both its agency and its weight style are checked.
+    function setupTemporalToggles(root: ParentNode) {
+        const agencyChecks = Array.from(
+            root.querySelectorAll<HTMLInputElement>(".tf_agency_input"),
+        );
+        const weightChecks = Array.from(
+            root.querySelectorAll<HTMLInputElement>(".tf_weight_input"),
+        );
+        const cells = Array.from(
+            root.querySelectorAll<HTMLElement>(".facet-grid .facet-cell"),
+        );
+        if (!agencyChecks.length || !weightChecks.length || !cells.length) return;
+
+        function updateVisibleCells() {
+            const checkedAgencies = new Set(
+                agencyChecks.filter((c) => c.checked).map((c) => c.value),
+            );
+            const checkedWeights = new Set(
+                weightChecks.filter((c) => c.checked).map((c) => c.value),
+            );
+            for (const cell of cells) {
+                const matches =
+                    checkedAgencies.has(cell.dataset.agency ?? "") &&
+                    checkedWeights.has(cell.dataset.weightKey ?? "");
+                cell.classList.toggle("hidden", !matches);
+            }
+        }
+
+        [...agencyChecks, ...weightChecks].forEach((el) =>
+            el.addEventListener("change", updateVisibleCells),
+        );
+        updateVisibleCells();
+    }
+
+    // Scoped to the enclosing .facet-panel rather than .tf_params's parent: this component gets
+    // embedded inside other pages' own wrapper elements, so anything looser than "this section's
+    // own panel" risks also matching (and hiding) the other facet panels' grid cells below.
+    document.querySelectorAll<HTMLElement>(".tf_params").forEach((paramsEl) => {
+        const panel = paramsEl.closest<HTMLElement>(".facet-panel");
+        if (panel) setupTemporalToggles(panel);
+    });
+</script>
+
+<section class="facet-panel">
+    <h3> How does the same network vary across weight types? </h3>
+    <div class="params wt_params">
+        <b>Agency: </b> &nbsp;
+        <select class="wt_agency">
+            {AGENCIES.map((a) => <option value={a.value}>{a.label}</option>)}
+            <option value={ALL_AGENCIES_VALUE}>All agencies</option>
+        </select>
+        &nbsp;&nbsp;
+
+        <b>Time frame: </b> &nbsp;
+        <select class="wt_time_frame">
+            <option value="annual">annual</option>
+            <option value="aggregate">aggregate</option>
+        </select>
+        &nbsp;&nbsp;
+
+        <span class="wt_year_group">
+            <b>Year: </b> &nbsp;
+            <input type="number" class="wt_year year-input" min={YEAR_MIN} max={YEAR_MAX} value={DEFAULT_YEAR} />
+        </span>
+    </div>
+
+    <div class="facet-grid">
+        {WEIGHT_ROWS.map((row) => (
+            <div class="facet-cell">
+                <div class="facet-row-label">{row.label}</div>
+                <Nwk
+                    weight_type={row.weight_type}
+                    log={row.log}
+                    agency_selector=".wt_agency"
+                    time_frame_selector=".wt_time_frame"
+                    year_selector=".wt_year"
+                    nodes_shown={DEFAULT_NODES_SHOWN}
+                    width={GRID_WIDTH}
+                    show_controls={false}
+                />
+            </div>
+        ))}
+    </div>
+</section>
+
+<section class="facet-panel">
+    <h3> In a single snapshot of time, how do networks vary across agencies? </h3>
+    <div class="params ag_params">
+        <b>Weight style: </b> &nbsp;
+        <select class="ag_weight">
+            {WEIGHT_ROWS.map((row) => <option value={row.key}>{row.label}</option>)}
+        </select>
+        &nbsp;&nbsp;
+
+        <b>Time frame: </b> &nbsp;
+        <select class="ag_time_frame">
+            <option value="annual">annual</option>
+            <option value="aggregate">aggregate</option>
+        </select>
+        &nbsp;&nbsp;
+
+        <span class="ag_year_group">
+            <b>Year: </b> &nbsp;
+            <input type="number" class="ag_year year-input" min={YEAR_MIN} max={YEAR_MAX} value={DEFAULT_YEAR} />
+        </span>
+    </div>
+
+    <div class="facet-grid">
+        {ALL_AGENCY_ROWS.map((row) => (
+            <div class="facet-cell">
+                <div class="facet-row-label">{row.label}</div>
+                <Nwk
+                    agency={row.agency}
+                    weight_selector=".ag_weight"
+                    time_frame_selector=".ag_time_frame"
+                    year_selector=".ag_year"
+                    nodes_shown={DEFAULT_NODES_SHOWN}
+                    width={GRID_WIDTH}
+                    show_controls={false}
+                />
+            </div>
+        ))}
+    </div>
+</section>
+
+<script>
+    // Mirrors explorer.astro's updateYearVisibility: the year input only matters for "annual".
+    // Both params blocks below contain their own controls and dependent groups, so scoping to
+    // the params element itself (rather than a shared ancestor) is enough to keep the two facet
+    // panels independent.
+    function wireVisibility(
+        root: ParentNode,
+        controlSelector: string,
+        groupSelector: string,
+        showWhen: string,
+    ) {
+        const control = root.querySelector<HTMLSelectElement>(controlSelector);
+        const group = root.querySelector<HTMLElement>(groupSelector);
+        if (!control || !group) return;
+        function update() {
+            group!.style.display = control!.value === showWhen ? "" : "none";
+        }
+        control.addEventListener("change", update);
+        update();
+    }
+
+    document.querySelectorAll<HTMLElement>(".wt_params").forEach((el) => {
+        wireVisibility(el, ".wt_time_frame", ".wt_year_group", "annual");
+    });
+
+    document.querySelectorAll<HTMLElement>(".ag_params").forEach((el) => {
+        wireVisibility(el, ".ag_time_frame", ".ag_year_group", "annual");
+    });
+</script>
+
+<script>
+    // Every year input across the three facet panels shares this class; on committing an
+    // out-of-range value, revert to whatever the field last held rather than clamping to
+    // min/max, so a stray keystroke doesn't silently jump the user to a different year.
+    document.querySelectorAll<HTMLInputElement>(".year-input").forEach((input) => {
+        let lastValid = input.value;
+        input.addEventListener("change", () => {
+            const value = Number(input.value);
+            const min = Number(input.min);
+            const max = Number(input.max);
+            if (Number.isNaN(value) || value < min || value > max) {
+                input.value = lastValid;
+            } else {
+                lastValid = input.value;
+            }
+        });
+    });
+</script>
 
 </Layout>
-
-

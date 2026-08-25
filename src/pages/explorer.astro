@@ -3,16 +3,48 @@ import Welcome from "../components/Welcome.astro";
 import Layout from "../layouts/Layout.astro";
 import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 import Header from "../components/Header.astro";
-import AnnualFlowChart from "../components/annualflow_charts.astro"
-import FacetedFlows from "../components/faceted_flow_graphs.astro"
-import FacetedNwks from "../components/faceted_nwk_graphs.astro"
+import AnnualFlowChart from "../components/annualflow_charts.astro";
+import FacetedFlows from "../components/faceted_flow_graphs.astro";
+import FacetedNwks from "../components/faceted_nwk_graphs.astro";
 // Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
 // Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
 ---
+
 <Layout>
+  <h1>Explore</h1>
+
+
+    <div style="font-style: italic; color: var(--lightBrown)">
+      <b
+        >From 2000-2021, across 13 federal environmental agencies, explore the
+        communities of lobbyists who've been interested in the same groups of
+        bills.</b
+      >
+      <br />
+      <br />
+      To make these graphs, we drew edges between each pair of lobbyists who lobbied
+      the same federal agency over at least 1 common bill. We weigh the edges by intensity
+      of lobbying activity: for <b>base</b> weight, each bill adds 1 to edge weight,
+      and for <b>spending</b> weight, we multiply bill count by spending. There is
+      the option to <b>logarithmize</b> spending, as it's reasonable to assume spending
+      has diminishing returns.
+      <br />
+      <br />
+      We then run our graphs through a random-walk-based <b
+        >community detection algorithm</b
+      >, such that political actors working on dense clusters of similar bills
+      are grouped together. Edge <b>"flow"</b> represents the proportion of time the
+      random walker spends on a given edge - think of it as a normalized version of
+      lobbying intensity.
+      <br />
+      <br />
+      If you're curious about our methodology, <a
+        href="/lobbying_networks_site/methodology">click</a> to read about it! TODO: add dynamic vertical table of contents so ppl know what they're looking at.
+    </div>
+
   <div class="explorer">
-    <h2> <i>1. explore networks </i></h2>
-    Instructions. (insert text box w scrolling.)
+    <h2><i>1. explore networks </i></h2>
+
     <div class="params">
       <span id="year_group">
         <label for="yr_input"><b>Year: </b></label>
@@ -68,20 +100,22 @@ import FacetedNwks from "../components/faceted_nwk_graphs.astro"
     <div id="chart-container" class="chart-container"></div>
 
     <br />
-    <button id="screenshot-btn" type="button"> Download chart </button>
+    <!-- <button id="screenshot-btn" type="button"> Download chart </button> -->
 
     <!-- <button id="batch-btn" type="button">Run all screenshots</button> -->
 
-    <br><br>
-    <h2><i>2. flow through time</i></h2>
-    <br>
+    <br /><br /> <br /><br /> <br /><br />
+    <h2><i>2. Explore flow through time</i></h2>
+    <br />
 
-    <AnnualFlowChart show_controls={true}/> 
+    <AnnualFlowChart show_controls={true} />
 
+    <br /><br /> <br /><br /> <br /><br />
 
-    <h2><i>3. Faceted figures</i></h2>
-    Explore <a href="#facet-flow">flow through time</a> &nbsp · &nbsp
-    Explore <a href="#facet-nwks">networks through time</a>
+    <h2><i>3. Compare networks & flow through time.</i></h2>
+    Explore <a href="#facet-flow">flow through time</a> &nbsp · &nbsp Explore <a
+      href="#facet-nwks">networks through time</a
+    >
 
     <div id="facet-flow" class="facet-section">
       <FacetedFlows />
@@ -101,7 +135,8 @@ import FacetedNwks from "../components/faceted_nwk_graphs.astro"
         document
           .querySelectorAll<HTMLElement>(".facet-section")
           .forEach((el) => {
-            el.style.display = `#${el.id}` === window.location.hash ? "block" : "none";
+            el.style.display =
+              `#${el.id}` === window.location.hash ? "block" : "none";
           });
       }
 
@@ -109,7 +144,7 @@ import FacetedNwks from "../components/faceted_nwk_graphs.astro"
       showFacetSection();
     </script>
 
-    <br>
+    <br />
     <script type="module">
       /////// EXPLORER WINDOW /////
       import define from "../scripts/index.js";
@@ -167,7 +202,9 @@ import FacetedNwks from "../components/faceted_nwk_graphs.astro"
           timeFrame === "annual" ? "" : "none";
       }
 
-      document.getElementById("time_frame").addEventListener("change", updateYearVisibility);
+      document
+        .getElementById("time_frame")
+        .addEventListener("change", updateYearVisibility);
 
       updateYearVisibility(); // called once during page load, then never again
 
@@ -177,7 +214,9 @@ import FacetedNwks from "../components/faceted_nwk_graphs.astro"
           weightType === "spending" ? "" : "none";
       }
 
-      document.getElementById("weight_type").addEventListener("change", updateLogVisibility);
+      document
+        .getElementById("weight_type")
+        .addEventListener("change", updateLogVisibility);
 
       updateLogVisibility(); // called once during page load, then never again
 
@@ -293,4 +332,3 @@ import FacetedNwks from "../components/faceted_nwk_graphs.astro"
     </style>
   </div>
 </Layout>
-
