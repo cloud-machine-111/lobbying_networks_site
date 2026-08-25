@@ -80,6 +80,36 @@ const SNAPSHOT_YEARS = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) =>
     h3 {
         text-align: center;
     }
+    /* Each facet-panel is a <details> so its section can be collapsed; only the first is open
+       by default (see the open attribute below). */
+    .facet-panel {
+        border-bottom: solid 1px var(--lightBrown);
+        margin-bottom: 1.5em;
+        padding-bottom: 1em;
+    }
+    .facet-panel > summary {
+        cursor: pointer;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4em;
+    }
+    .facet-panel > summary::-webkit-details-marker {
+        display: none;
+    }
+    .facet-panel > summary::before {
+        content: "▸";
+        display: inline-block;
+        color: var(--lightBrown);
+        transition: transform 0.15s ease;
+    }
+    .facet-panel[open] > summary::before {
+        transform: rotate(90deg);
+    }
+    .facet-panel > summary h3 {
+        margin: 0.6em 0;
+    }
     .facet-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -112,8 +142,8 @@ const SNAPSHOT_YEARS = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) =>
     }
 </style>
 
-<section class="facet-panel">
-    <h3> How do networks change temporally? </h3>
+<details class="facet-panel" open>
+    <summary><h3> How do networks change temporally? </h3></summary>
     <ColorLegend />
     <div class="params tf_params">
         <b>Agency: </b> &nbsp;
@@ -158,10 +188,10 @@ const SNAPSHOT_YEARS = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) =>
             </div>
         ))}
     </div>
-</section>
+</details>
 
 <script>
-    
+
     // One year per column, every one pre-rendered (see SNAPSHOT_YEARS) — Start/End year just
     // show/hide columns outside [start, end], so any valid start <= end always leaves at least
     // one column visible. Agency and weight style are read live by each Nwk instance via
@@ -195,8 +225,8 @@ const SNAPSHOT_YEARS = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) =>
     });
 </script>
 
-<section class="facet-panel">
-    <h3> How does the same network vary across weight types? </h3>
+<details class="facet-panel">
+    <summary><h3> How does the same network vary across weight types? </h3></summary>
     <ColorLegend />
     <div class="params wt_params">
         <b>Agency: </b> &nbsp;
@@ -238,10 +268,10 @@ const SNAPSHOT_YEARS = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) =>
             </div>
         ))}
     </div>
-</section>
+</details>
 
-<section class="facet-panel">
-    <h3> In a single snapshot of time, how do networks vary across agencies? </h3>
+<details class="facet-panel">
+    <summary><h3> In a single snapshot of time, how do networks vary across agencies? </h3></summary>
     <ColorLegend />
     <div class="params ag_params">
         <b>Weight style: </b> &nbsp;
@@ -281,7 +311,7 @@ const SNAPSHOT_YEARS = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) =>
             </div>
         ))}
     </div>
-</section>
+</details>
 
 <script>
     // Mirrors explorer.astro's updateYearVisibility: the year input only matters for "annual".
