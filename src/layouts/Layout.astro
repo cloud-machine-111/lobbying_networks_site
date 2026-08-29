@@ -1,6 +1,7 @@
 ---
 import { colors } from "../styles/colors";
 import Header from "../components/Header.astro";
+import Text from "./Text.astro";
 
 const { style } = Astro.props;
 ---
@@ -23,37 +24,11 @@ const { style } = Astro.props;
 	<center style="font-size: smaller; font-style: italic; color: var(--lightBrown)">© 2026 RESL Lab</center>
 </html>
 
+<Text />
 <Header />
 <style is:global define:vars={colors}>
 	html {
 		margin: 3vh 8vw;
-		h1 {
-			font-size: 3em;
-			color: var(--accentBrown);
-
-			@media (max-width: 600px) {
-				font-size: 2em;
-			}
-		}
-
-		p {
-			line-height: 1.5;
-			@media (max-width: 600px) {
-				font-size: .9em;
-			}
-		}
-
-		a {
-			color: rgb(117, 199, 2);
-			font-weight: 700;
-			text-decoration: none;
-			transition-duration: 0.5s;
-		}
-
-		a:hover {
-			color: rgb(148, 235, 43);
-			
-		}
 
 		.hero {
 			@media (max-width: 1000px) {
@@ -179,23 +154,6 @@ const { style } = Astro.props;
 		background-color: var(--charcoal);
 	}
 
-
-	/* @media (max-width: 600px) {
-		.hero {
-			padding: 5% 8%;
-			height: auto;
-			min-height: 100vh;
-		}
-
-		.content {
-			flex-direction: column-reverse;
-		}
-
-		.hero-network {
-			flex: 0 0 auto;
-			width: 160px;
-		}
-	} */
 </style>
 
 
@@ -211,47 +169,4 @@ const { style } = Astro.props;
 		canvas.height = window.innerHeight;
 	});
 
-	const circles = [];
-	const maxCircles = 100;
-	const trailLength = 20;
-
-
-	function createCircle(x, y, radius, color) {
-		circles.push({x,y,radius,color});
-		if (circles.length > maxCircles) {
-			circles.shift();
-		}
-	}
-
-	function draw() {
-		ctx.clearRect(0,0,canvas.width, canvas.height);
-
-		for (let i = 0; i < circles.length; i++) {
-			const circle = circles[i];
-
-			ctx.beginPath();
-			ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
-			ctx.fillStyle = circle.color;
-			ctx.globalAlpha = (i / circles.length) * 0.5;
-			ctx.fill();
-
-			circle.radius += 1;
-			if (circle.radius > 50) {
-				circles.splice(i, 1);
-				i--;
-			}
-		}
-		requestAnimationFrame(draw);
-	}
-
-	function onMouseMove(event) {
-		const x = event.clientX;
-		const y = event.clientY;
-		createCircle(x, y, 0, "#d8fc76");
-
-	}
-
-	window.addEventListener("mousemove", onMouseMove);
-
-	draw();
 </script>
