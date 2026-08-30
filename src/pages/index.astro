@@ -7,52 +7,212 @@ import NwkView from "../components/nwk_view.astro";
 // Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
 ---
 
+<style>
+    h1 {
+        /* override Text.astro's fixed 5em: scale with the .left column's width
+           so the longest line ("Social networks") always fits at one line */
+        font-size: clamp(3.5rem, 13cqw, 9rem);
+        white-space: nowrap;
+    }
+
+    h1 .line {
+        display: block;
+        /* only the manual line structure applies; text never auto-wraps */
+        white-space: nowrap;
+    }
+
+    .in {
+        font-style: italic;
+        display: inline-block;
+        font-size: 0.7em;
+    }
+
+    .in-spacer {
+        display: inline-block;
+        width: 2.1rem;
+        /* ^ 3 * relative size of "in" */
+    }
+
+    .subtitle {
+        font-size: clamp(0.5rem, 3cqw, 1rem);
+        display: block;
+        width: 50%;
+        color: var(--lightBrown);
+        margin-top: -2em;
+    }
+
+    .hero-flex {
+        margin: 8vh 2vw;
+        display: flex;
+        flex-direction: row;
+        gap: 3rem;
+        align-items: flex-start;
+    }
+
+    .hero-flex > .left,
+    .hero-flex > .right {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .hero-flex > .left {
+        /* lets h1 size itself off this column's width via cqw units */
+        container-type: inline-size;
+    }
+
+    @media (max-width: 900px) {
+        .hero-flex {
+            flex-direction: column;
+        }
+
+        /* stacked: cross axis is horizontal, so give the columns an explicit
+           width — otherwise container-type: inline-size collapses .left to ~0 */
+        .hero-flex > .left,
+        .hero-flex > .right {
+            width: 100%;
+            flex: none;
+        }
+    }
+
+    .right {
+        border: solid 0.2px rgb(209, 198, 198);
+    }
+
+    .hero-box {
+        /* center the image + caption block within .right */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        .img-wrap {
+            display: block;
+            width: clamp(80%, 5cqw, 90%);
+            border: 3px solid var(--accentRed);
+            line-height: 0;
+        }
+
+        img {
+            width: 100%;
+            opacity: 0.9;
+            transition: opacity 0.3s ease;
+        }
+
+        &:hover img {
+            opacity: 1;
+        }
+
+        .caption {
+            /* same width as the image, so its left edge lines up... */
+            width: 80%;
+            /* ...and the text is flush against that left edge */
+            text-align: left;
+            color: var(--lightBrown);
+            margin-top: 10px;
+            font-size: clamp(1rem, 3cqw, 1.2rem);
+            font-weight: 100;
+            font-style: italic;
+        }
+    }
+
+    .logo-footer {
+        bottom: 0vh;
+        left: 0vw;
+        padding: 3vh 0 1.5vh 1.5vw;
+        position: fixed;
+        width: 100%;
+          background-image: linear-gradient(to bottom, rgba(255, 0, 0, 0), var(--background));
+        transition: opacity 0.3s ease;
+    }
+
+    .logo-footer.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+</style>
 <Layout>
-  <body>
-  
-  <div style="display: flex; align-items: center;justify-content: center;">
-    
+    <body>
+        <div class="hero-flex">
+            <div class="left">
+                <h1>
+                    <span class="line">Social networks</span>
+                    <span class="line"
+                        ><span class="in">in</span> environmental</span
+                    >
+                    <span class="line"
+                        ><span class="in-spacer"></span>lobbying</span
+                    >
+                </h1>
 
-    <div class="hero">
-      <h1>Networks of Influence<br>in Environmental Lobbying</h1>
-      
-      <div class="content">
-      <p>
-        <b> Hook. Ideas in comments. </b>
-        How can we measure lobbyists' success at effecting change? Straight away, we might imagine a lobbyist's influence as proportional to money spent on advocacy - with that money buying votes or airtime for informational signaling.
-        <br /> <br />
-        But effective coalition is <i>social</i>. Well-connected networks of actors mean that political intelligence travels to where it needs to be and those with allied interests can strategically coordinate legislative labor. It's been suggested<sup>1</sup> that the most valuable work lobbyists do is to facilitate this: rather than changing legislators' minds, they coordinate between natural political allies to achieve goals that are desirable to everyone.
-        <br> <br>
-        Using <a href="https://www.opensecrets.org">Open Secrets</a> data on environmental lobbying, we built networks associating and grouping actors by shared lobbying activity, across 20 years and 12 federal agencies. <a href="/lobbying_networks_site/guided">Scroll</a> to follow our journey through the data, or take our explorer app for a spin!
-        <br> <br>
-        <em style="font-size: .7em;;">
-        <sup>1</sup> Lobbying as Legislative Subsidy - Hall, Deardorff, 2006 
-        <!-- <br> 
-        idea: compare plain-spending and logged-spending nwks to show that in latter, interesting patterns of influence emerge that aren't completely dominated by businesses. -->
-        </em>
-      </p>
-      <NwkView/>
-      </div>
-      <!-- <br> -->
-      <div style="flex-direction: row;">
-      <a href="/lobbying_networks_site/explorer" class="button"> Explore </a>
-      
-  
-      <a href="methodology" class="button"> Data & methodology </a>
-      </div>
+                <em class="subtitle">
+                    using Open Secrets data to measure interest group influence
+                    on federal agencies.
+                </em>
 
-      <div style="flex-direction: row; align-items: center; justify-content: bottom; padding: 2vh 0px;">
-          <img src="/lobbying_networks_site/watson_logo.png" alt="Watson School logo" style="height: 7vh; max-height: 120px; margin: 20px; 
-          ">
+                <br> 
 
-          <img src="/lobbying_networks_site/RESL_Circular_logo.png" alt="Watson School logo" style="height: 7vh; max-height: 120px; margin: 20px;">
-      </div>
+                <p>
+                    How can we measure lobbyists' success at effecting change?
+                    Straight away, we might imagine a lobbyist's influence as
+                    proportional to money spent on advocacy - with that money
+                    buying votes or airtime for informational signaling. But
+                    effective coalition is social. Well-connected networks of
+                    actors mean that political intelligence travels to where it
+                    needs to be and those with allied interests can
+                    strategically coordinate legislative labor. It's been
+                    suggested<sup>1</sup> that the most valuable work lobbyists do is to
+                    facilitate this: rather than changing legislators' minds,
+                    they coordinate between natural political allies to achieve
+                    goals that are desirable to everyone.
+                </p>
 
+                <p style="font-size: small; font-style: italic">
+                    <sup>1</sup> Lobbying as Legislative Subsidy - Hall, Deardorff, 2006 
+                </p>
+            </div>
 
-    </div>
+            <div class="right">
+                <a href="explorer" class="hero-box">
+                    <span class="img-wrap"><img src="sample_hero_img.png"></span>
+                    <span class="caption">Explore networks</span>
+                </a>
 
-  </div>
+                <br> <br>
 
+                <a href="..." class="hero-box">
+                    <span class="img-wrap"><img src="sample_hero_img.png"></span>
+                    <span class="caption">Compare networks</span>
+                </a>
+            </div>
 
-  </body>
+        </div>
+
+        <div class="logo-footer">
+            <img
+                src="/lobbying_networks_site/watson_logo.png"
+                alt="Watson School logo"
+                style="height: 7vh; max-height: 120px; margin: 20px; 
+          "
+            />
+
+            <img
+                src="/lobbying_networks_site/RESL_Circular_logo.png"
+                alt="Watson School logo"
+                style="height: 7vh; max-height: 120px; margin: 20px;"
+            />
+        </div>
+        <br><br><br><br><br><br><br>
+    </body>
 </Layout>
+
+<script>
+    // Fade the fixed logo footer out once the user scrolls past `threshold` px.
+    const footer = document.querySelector(".logo-footer");
+    const threshold = 400;
+
+    const update = () => {
+        footer?.classList.toggle("is-hidden", window.scrollY > threshold);
+    };
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+</script>
