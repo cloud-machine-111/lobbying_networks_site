@@ -55,6 +55,11 @@ import NwkView from "../components/nwk_view.astro";
         min-width: 0;
     }
 
+    .hero-flex > .right {
+        /* right column is 20% narrower than the left */
+        flex-grow: 0.8;
+    }
+
     .hero-flex > .left {
         /* lets h1 size itself off this column's width via cqw units */
         container-type: inline-size;

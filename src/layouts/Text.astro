@@ -4,12 +4,18 @@ import { colors } from "../styles/colors";
 
 <style is:global define:vars={colors}>
 
-		h1 {
-			font-size: 3em;
-			color: var(--accentBrown);
+		body {
+			font-family: "Times New Roman", Times, serif;
+		}
 
-			@media (max-width: 600px) {
-				font-size: 2em;
+		h1 {
+			font-size: 5em;
+            line-height: 1.1cap;
+            font-weight: 100;
+			color: var(--accentGreen);
+
+			@media (max-width: 900px) {
+				font-size: 3em;
 			}
 		}
 

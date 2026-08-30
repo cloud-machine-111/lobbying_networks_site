@@ -1,0 +1,43 @@
+---
+import Layout from "../layouts/Layout.astro";
+import FacetedFlows from "../components/faceted_flow_graphs.astro";
+import FacetedNwks from "../components/faceted_nwk_graphs.astro";
+---
+
+<Layout>
+  <h1>Compare</h1>
+
+  <div class="explorer">
+    <h2><i>Compare networks & flow through time.</i></h2>
+    Explore <a href="#facet-flow">flow through time</a> &nbsp · &nbsp Explore <a
+      href="#facet-nwks">networks through time</a
+    >
+
+    <div id="facet-flow" class="facet-section">
+      <FacetedFlows />
+    </div>
+    <div id="facet-nwks" class="facet-section">
+      <FacetedNwks />
+    </div>
+
+    <style>
+      .facet-section {
+        display: none;
+      }
+    </style>
+
+    <script>
+      function showFacetSection() {
+        document
+          .querySelectorAll<HTMLElement>(".facet-section")
+          .forEach((el) => {
+            el.style.display =
+              `#${el.id}` === window.location.hash ? "block" : "none";
+          });
+      }
+
+      window.addEventListener("hashchange", showFacetSection);
+      showFacetSection();
+    </script>
+  </div>
+</Layout>

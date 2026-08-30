@@ -4,9 +4,9 @@
 // component scripts import this module directly when they need the raw
 // value (e.g. handing a hex string to d3.scaleOrdinal).
 export const colors = {
-  background: "#f5f2e6",
+  background: "#f2f2f2",
   accentRed: "#c0392b",
-  accentGreen: "#2c6e49",
+  accentGreen: "#2fb42fff",
   linkStroke: "#999999",
   nodeStroke: "#000000",
   accentBrown: "#342b2b",
