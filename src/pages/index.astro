@@ -2,6 +2,7 @@
 import Welcome from "../components/Welcome.astro";
 import Layout from "../layouts/Layout.astro";
 import NwkView from "../components/nwk_view.astro";
+import SiteTitle from "../components/SiteTitle.astro";
 import heroImg from "../assets/sample_hero_img.png";
 import watsonLogo from "../assets/watson_logo.png";
 import reslLogo from "../assets/RESL_Circular_logo.png";
@@ -11,37 +12,14 @@ import reslLogo from "../assets/RESL_Circular_logo.png";
 ---
 
 <style>
-    h1 {
-        /* override Text.astro's fixed 5em: scale with the .left column's width
-           so the longest line ("Social networks") always fits at one line */
-        font-size: clamp(3.5rem, 13cqw, 9rem);
-        white-space: nowrap;
-    }
-
-    h1 .line {
-        display: block;
-        /* only the manual line structure applies; text never auto-wraps */
-        white-space: nowrap;
-    }
-
-    .in {
-        font-style: italic;
-        display: inline-block;
-        font-size: 0.7em;
-    }
-
-    .in-spacer {
-        display: inline-block;
-        width: 2.1rem;
-        /* ^ 3 * relative size of "in" */
-    }
-
     .subtitle {
         font-size: clamp(0.5rem, 3cqw, 1rem);
         display: block;
         width: 50%;
         color: var(--lightBrown);
-        margin-top: -2em;
+        /* sits directly under <SiteTitle /> (which has margin: 0); no negative
+           pull-up — that overlapped the wordmark's last line */
+        margin-top: 1.3em;
     }
 
     .hero-flex {
@@ -83,7 +61,7 @@ import reslLogo from "../assets/RESL_Circular_logo.png";
     }
 
     .right {
-        border: solid 0.2px rgb(209, 198, 198);
+        /* border: solid 0.2px rgb(209, 198, 198); */
     }
 
     .hero-box {
@@ -141,15 +119,7 @@ import reslLogo from "../assets/RESL_Circular_logo.png";
     <body>
         <div class="hero-flex">
             <div class="left">
-                <h1>
-                    <span class="line">Social networks</span>
-                    <span class="line"
-                        ><span class="in">in</span> environmental</span
-                    >
-                    <span class="line"
-                        ><span class="in-spacer"></span>lobbying</span
-                    >
-                </h1>
+                <SiteTitle />
 
                 <em class="subtitle">
                     using Open Secrets data to measure interest group influence

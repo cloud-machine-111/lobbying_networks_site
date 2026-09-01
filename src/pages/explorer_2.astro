@@ -3,6 +3,7 @@ import Layout from "../layouts/Layout.astro";
 import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 import Header from "../components/Header.astro";
 import AnnualFlowChart from "../components/annualflow_charts.astro";
+import SiteTitle from "../components/SiteTitle.astro";
 ---
 
 <style>
@@ -26,7 +27,6 @@ import AnnualFlowChart from "../components/annualflow_charts.astro";
       color: var(--accentBrown);
       font-size: smaller;
     }
-    
   }
 
   /* 30:70 split of the space left after the flex gap. */
@@ -36,6 +36,9 @@ import AnnualFlowChart from "../components/annualflow_charts.astro";
     /* Narrow green rule between the two columns (centered in the gap). */
     padding-right: 2rem;
     border-right: 1.5px solid var(--accentGreen);
+    /* sizing reference for `cqw` units used by children (e.g. the "explore"
+       label), so they track the column width like <SiteTitle /> does */
+    container-type: inline-size;
   }
 
   .config .rhs {
@@ -63,6 +66,9 @@ import AnnualFlowChart from "../components/annualflow_charts.astro";
     .config .lhs {
       padding-right: 0;
       border-right: none;
+      /* Green rule now runs horizontally between the stacked columns. */
+      padding-bottom: 2rem;
+      border-bottom: 1.5px solid var(--accentGreen);
     }
   }
 
@@ -187,20 +193,47 @@ import AnnualFlowChart from "../components/annualflow_charts.astro";
     font-variant-numeric: tabular-nums;
     color: var(--accentBrown);
   }
+
+  /* match the <select> box in Layout.astro (same border, radius, padding...) */
+  #nodes_shown {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 1em;
+    color: var(--accentBrown);
+    background-color: transparent;
+    border: 1px solid var(--accentGreen);
+    border-radius: 6px;
+    padding: 0.25em 0.5em;
+    width: 5em;
+    font-variant-numeric: tabular-nums;
+  }
 </style>
 
-
 <Layout>
-  <Header/>
+  <Header />
   <h1 style="display: none">Explore</h1>
 
   <div class="config">
     <div class="lhs">
-      Social networks in environmental lobbying
+      <SiteTitle min="1rem" />
+
       <br />
-      <h2>
-      explore
-      </h2>
+      <div
+        class="label"
+        style="background: var(--accentGreen); font-size: clamp(.5rem, 13cqw, 1rem);"
+      >
+        explore networks
+      </div>
+
+      <p>
+        From 2000-2021, across 12 federal environmental agencies, explore the
+        communities of lobbyists who've been interested in the same groups of
+        bills.
+        <br />
+        <br />
+        If you're curious about our methodology, <a
+          href="/lobbying_networks_site/methodology">click</a
+        > to read about it!
+      </p>
     </div>
 
     <div class="rhs">
@@ -219,9 +252,14 @@ import AnnualFlowChart from "../components/annualflow_charts.astro";
         across what time frame?
         <br />
         <label class="radio_container">
-          <input type="radio" name="time_frame" value="annual" checked="checked" />
+          <input
+            type="radio"
+            name="time_frame"
+            value="annual"
+            checked="checked"
+          />
           <span class="radio_mark"></span>
-        </label> a year 
+        </label> a year
 
         <div style="width: 30%; display: inline-block"></div>
 
@@ -242,7 +280,9 @@ import AnnualFlowChart from "../components/annualflow_charts.astro";
               step="1"
               value="2021"
             />
-            <span class="year_bubble" id="year_bubble" aria-hidden="true">2021</span>
+            <span class="year_bubble" id="year_bubble" aria-hidden="true"
+              >2021</span
+            >
           </div>
           <span>2021</span>
         </div>
@@ -271,6 +311,25 @@ import AnnualFlowChart from "../components/annualflow_charts.astro";
       </div>
     </div>
   </div>
+
+  <br />
+  <br />
+
+  <div class="label">Nodes shown:</div> &nbsp;
+  <input
+    type="number"
+    id="nodes_shown"
+    name="nodes_shown"
+    min="1"
+    max="300"
+    step="1"
+    value="20"
+  />
+
+  <br />
+  <br />
+  explorer here!
+  <br> <br>
 </Layout>
 
 <script>
@@ -298,9 +357,10 @@ import AnnualFlowChart from "../components/annualflow_charts.astro";
   }
 
   function syncSlider() {
-    const annual = document.querySelector<HTMLInputElement>(
-      'input[name="time_frame"]:checked',
-    )?.value === "annual";
+    const annual =
+      document.querySelector<HTMLInputElement>(
+        'input[name="time_frame"]:checked',
+      )?.value === "annual";
     slider.hidden = !annual;
     if (annual) positionBubble();
   }
@@ -310,4 +370,17 @@ import AnnualFlowChart from "../components/annualflow_charts.astro";
   window.addEventListener("resize", positionBubble);
 
   syncSlider();
+
+  // The max/min attrs don't stop manual typing, so clamp to [1, 300] on blur.
+  const nodesShown = document.getElementById("nodes_shown") as HTMLInputElement;
+  nodesShown.addEventListener("change", () => {
+    const lo = +nodesShown.min;
+    const hi = +nodesShown.max;
+    const val = Math.round(+nodesShown.value);
+    nodesShown.value = String(
+      Number.isNaN(val)
+        ? nodesShown.defaultValue
+        : Math.min(hi, Math.max(lo, val)),
+    );
+  });
 </script>

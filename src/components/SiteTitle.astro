@@ -1,0 +1,72 @@
+---
+/**
+ * The wordmark: "Social networks / in environmental / lobbying", broken across
+ * three deliberate lines with the italic hanging "in".
+ *
+ * Sizes itself off the WIDTH OF ITS PARENT: the wrapper is a
+ * `container-type: inline-size` context, so `--st-ideal` (a `cqw` value) tracks
+ * whatever column it's dropped into. `13cqw` is tuned so the longest line
+ * ("Social networks") fills the column on one line. Lower `min` when the parent
+ * column is narrow enough that the default floor would force an overflow.
+ */
+interface Props {
+  /** clamp() floor — smallest the title is allowed to get */
+  min?: string;
+  /** clamp() preferred value — should be a container-query unit (`cqw`) */
+  ideal?: string;
+  /** clamp() ceiling — largest the title is allowed to get */
+  max?: string;
+  class?: string;
+}
+
+const {
+  min = "3.5rem",
+  ideal = "13cqw",
+  max = "9rem",
+  class: className,
+} = Astro.props;
+---
+
+<div class:list={["site-title", className]}>
+  <h1 style={`--st-min:${min};--st-ideal:${ideal};--st-max:${max}`}>
+    <span class="line">Social networks</span>
+    <span class="line"><span class="in">in</span> environmental</span>
+    <span class="line"><span class="in-spacer"></span>lobbying</span>
+  </h1>
+</div>
+
+<style>
+  .site-title {
+    /* establishes the sizing reference for the `cqw` unit in `--st-ideal` */
+    container-type: inline-size;
+  }
+
+  .site-title h1 {
+    /* override Text.astro's fixed 5em: scale with the parent column's width so
+       the longest line ("Social networks") always fits on one line */
+    font-size: clamp(var(--st-min), var(--st-ideal), var(--st-max));
+    white-space: nowrap;
+    margin: 0;
+    /* don't inherit italics from a styled parent (e.g. explorer_2's .config) */
+    font-style: normal;
+  }
+
+  .site-title .line {
+    display: block;
+    /* only the manual line structure applies; text never auto-wraps */
+    white-space: nowrap;
+  }
+
+  .site-title .in {
+    font-style: italic;
+    display: inline-block;
+    font-size: 0.7em;
+  }
+
+  .site-title .in-spacer {
+    display: inline-block;
+    /* hanging indent for "lobbying" — roughly the width of the italic "in";
+       in `em` so it scales with the title instead of drifting when resized */
+    width: 0.5em;
+  }
+</style>
