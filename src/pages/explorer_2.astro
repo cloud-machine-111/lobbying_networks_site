@@ -1,0 +1,55 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
+import Header from "../components/Header.astro";
+import AnnualFlowChart from "../components/annualflow_charts.astro";
+---
+
+<style></style>
+<!-- todo: here, make it so that class "config" is a flexbox where lhs and rhs are side-by-side unless screen is too narrow. if too narrow, they stack, w/ lhs above. -->
+
+<Layout>
+  <Header/>
+  <h1 style="display: none">Explore</h1>
+
+  <div class="config">
+    <div class="lhs">
+      Social networks in environmental lobbying
+      <br />
+      explore
+    </div>
+
+    <div class="rhs">
+      <div class="label">Build a network...</div>
+      <!-- TODO: add "label" class to Layouts.astro. should make the div have var(--accentRed) background (from colors.js) with rounded radius. -->
+
+      <br />
+      for interest groups targeting which agency? <!-- TODO: here, add dropdown menu with all agencies in agencies.js -->
+      <br />
+      across what time frame?
+      <!-- TODO: add radio w options "a year" and "all time" -->
+
+      <br />
+      How should edges be weighed?
+      <br />
+
+      <!-- TODO: here, make the radio options in a bloc (so clicking 1 option unselects the other ones)-->
+      <label class="radio_container">
+        <input type="radio" checked="checked" />
+        <span class="radio_mark"></span>
+      </label> bills
+      <br />
+
+      <label class="radio_container">
+        <input type="radio" />
+        <span class="radio_mark"></span>
+      </label> spending × bills
+      <br />
+
+      <label class="radio_container">
+        <input type="radio" />
+        <span class="radio_mark"></span>
+      </label> ln(spending) × bills
+    </div>
+  </div>
+</Layout>

@@ -2,6 +2,7 @@
 import { colors } from "../styles/colors";
 import Header from "../components/Header.astro";
 import Text from "./Text.astro";
+import favicon from "../assets/RESL_Circular_logo.png";
 
 const { style } = Astro.props;
 ---
@@ -11,8 +12,7 @@ const { style } = Astro.props;
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/png+xml" href="/RESL_Circular_logo.png" />
-		<link rel="icon" href="/RESL_Circular_logo.png" />
+		<link rel="icon" type="image/png" href={favicon.src} />
 		<meta name="generator" content={Astro.generator} />
 		<title>Networks in Environmental Lobbying</title>
 	</head>

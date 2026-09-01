@@ -2,6 +2,9 @@
 import Welcome from "../components/Welcome.astro";
 import Layout from "../layouts/Layout.astro";
 import NwkView from "../components/nwk_view.astro";
+import heroImg from "../assets/sample_hero_img.png";
+import watsonLogo from "../assets/watson_logo.png";
+import reslLogo from "../assets/RESL_Circular_logo.png";
 
 // Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
 // Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
@@ -176,15 +179,15 @@ import NwkView from "../components/nwk_view.astro";
             </div>
 
             <div class="right">
-                <a href="explorer" class="hero-box">
-                    <span class="img-wrap"><img src="sample_hero_img.png"></span>
+                <a href="/lobbying_networks_site/explorer_2" class="hero-box">
+                    <span class="img-wrap"><img src={heroImg.src} alt=""></span>
                     <span class="caption">Explore networks</span>
                 </a>
 
                 <br> <br>
 
                 <a href="..." class="hero-box">
-                    <span class="img-wrap"><img src="sample_hero_img.png"></span>
+                    <span class="img-wrap"><img src={heroImg.src} alt=""></span>
                     <span class="caption">Compare networks</span>
                 </a>
             </div>
@@ -193,15 +196,15 @@ import NwkView from "../components/nwk_view.astro";
 
         <div class="logo-footer">
             <img
-                src="/lobbying_networks_site/watson_logo.png"
+                src={watsonLogo.src}
                 alt="Watson School logo"
-                style="height: 7vh; max-height: 120px; margin: 20px; 
+                style="height: 7vh; max-height: 120px; margin: 20px;
           "
             />
 
             <img
-                src="/lobbying_networks_site/RESL_Circular_logo.png"
-                alt="Watson School logo"
+                src={reslLogo.src}
+                alt="RESL logo"
                 style="height: 7vh; max-height: 120px; margin: 20px;"
             />
         </div>
