@@ -110,6 +110,24 @@ const { style } = Astro.props;
 			background: var(--neonColor);
 		}
 
+	.label {
+		display: inline-block;
+		background-color: var(--accentRed);
+		color: var(--background);
+		border-radius: 20px;
+		padding: 0.25em 0.7em;
+	}
+
+	select {
+		font-family: "Times New Roman", Times, serif;
+		font-size: 1em;
+		color: var(--accentBrown);
+		background-color: transparent;
+		border: 1px solid var(--accentGreen);
+		border-radius: 6px;
+		padding: 0.25em 0.5em;
+	}
+
 	.explorer {
 		padding: 8vw;
 		.params {

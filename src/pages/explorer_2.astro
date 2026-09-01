@@ -5,8 +5,190 @@ import Header from "../components/Header.astro";
 import AnnualFlowChart from "../components/annualflow_charts.astro";
 ---
 
-<style></style>
-<!-- todo: here, make it so that class "config" is a flexbox where lhs and rhs are side-by-side unless screen is too narrow. if too narrow, they stack, w/ lhs above. -->
+<style>
+  .config {
+    /* Full-bleed: cancel the html margin (8vw) + body padding on Layout so the
+       gray box spans the whole viewport while the rest of the page stays inset.
+       50% = half the content-area width, 50vw = half the viewport -> the
+       difference is exactly the offset to each screen edge, no hardcoded 8vw. */
+    width: 100vw;
+    margin-left: calc(50% - 51vw);
+    margin-right: calc(50% - 50vw);
+    box-sizing: border-box;
+    background: #e5e5e5;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: row;
+    gap: 2rem;
+    font-weight: 100px;
+    font-style: italic;
+    .rhs {
+      color: var(--accentBrown);
+      font-size: smaller;
+    }
+    
+  }
+
+  /* 30:70 split of the space left after the flex gap. */
+  .config .lhs {
+    flex: 3 1 0;
+    min-width: 0;
+    /* Narrow green rule between the two columns (centered in the gap). */
+    padding-right: 2rem;
+    border-right: 1.5px solid var(--accentGreen);
+  }
+
+  .config .rhs {
+    flex: 7 1 0;
+    min-width: 0;
+  }
+
+  /* Each option in "Build a network..." gets a green dashed, rounded box.
+     All the same width (80% of the rhs column) and not touching each other. */
+  .config-entry {
+    width: 80%;
+    box-sizing: border-box;
+    margin: 1rem 0;
+    padding: 1rem;
+    border: 1px dashed var(--accentGreen);
+    border-radius: 12px;
+  }
+
+  /* Too narrow: stack, lhs above rhs (lhs comes first in the DOM). */
+  @media (max-width: 800px) {
+    .config {
+      flex-direction: column;
+    }
+
+    .config .lhs {
+      padding-right: 0;
+      border-right: none;
+    }
+  }
+
+  /* Radio options grouped in a bloc via a shared `name` (see markup);
+     these rules just give the inputs a consistent custom look. */
+  .radio_container {
+    position: relative;
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+
+  .radio_container input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .radio_mark {
+    position: absolute;
+    inset: 0;
+    border: 1.5px solid var(--nodeStroke);
+    border-radius: 50%;
+    background: transparent;
+  }
+
+  .radio_container input:checked ~ .radio_mark {
+    background: var(--accentRed);
+    box-shadow: inset 0 0 0 2px #e5e5e5;
+  }
+
+  /* Year slider: only shown while the "a year" time frame is selected.
+     The draggable thumb is a circle; the current year sits right under it
+     (.year_bubble, positioned from JS). Matching circles mark each end. */
+  .year_slider {
+    margin-top: 1.4rem;
+    margin-bottom: 1.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-style: italic;
+  }
+
+  .year_slider[hidden] {
+    display: none;
+  }
+
+  .range_wrap {
+    position: relative;
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Fixed circles at the start and end of the timeline (same size as the
+     thumb; sit exactly where the thumb centers at min / max). */
+  .range_wrap::before,
+  .range_wrap::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    background: var(--accentBrown);
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  .range_wrap::before {
+    left: 0;
+  }
+
+  .range_wrap::after {
+    right: 0;
+  }
+
+  .year_slider input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 2px;
+    margin: 0;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--accentBrown) 60%, transparent);
+    cursor: pointer;
+    outline: none;
+  }
+
+  .year_slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 1em;
+    height: 1em;
+    border: none;
+    border-radius: 50%;
+    background: var(--accentBrown);
+    cursor: grab;
+  }
+
+  .year_slider input[type="range"]::-moz-range-thumb {
+    width: 1em;
+    height: 1em;
+    border: none;
+    border-radius: 50%;
+    background: var(--accentBrown);
+    cursor: grab;
+  }
+
+  .year_bubble {
+    position: absolute;
+    top: calc(50% + 1.4em);
+    transform: translateX(-50%);
+    pointer-events: none;
+    font-weight: 100;
+    font-variant-numeric: tabular-nums;
+    color: var(--accentBrown);
+  }
+</style>
+
 
 <Layout>
   <Header/>
@@ -16,40 +198,116 @@ import AnnualFlowChart from "../components/annualflow_charts.astro";
     <div class="lhs">
       Social networks in environmental lobbying
       <br />
+      <h2>
       explore
+      </h2>
     </div>
 
     <div class="rhs">
       <div class="label">Build a network...</div>
-      <!-- TODO: add "label" class to Layouts.astro. should make the div have var(--accentRed) background (from colors.js) with rounded radius. -->
 
-      <br />
-      for interest groups targeting which agency? <!-- TODO: here, add dropdown menu with all agencies in agencies.js -->
-      <br />
-      across what time frame?
-      <!-- TODO: add radio w options "a year" and "all time" -->
+      <div class="config-entry">
+        for interest groups targeting which agency? &nbsp;
+        <!-- <br /> -->
+        <select id="agency">
+          {AGENCIES.map((a) => <option value={a.value}>{a.label}</option>)}
+          <option value={ALL_AGENCIES_VALUE}>All agencies</option>
+        </select>
+      </div>
 
-      <br />
-      How should edges be weighed?
-      <br />
+      <div class="config-entry">
+        across what time frame?
+        <br />
+        <label class="radio_container">
+          <input type="radio" name="time_frame" value="annual" checked="checked" />
+          <span class="radio_mark"></span>
+        </label> a year 
 
-      <!-- TODO: here, make the radio options in a bloc (so clicking 1 option unselects the other ones)-->
-      <label class="radio_container">
-        <input type="radio" checked="checked" />
-        <span class="radio_mark"></span>
-      </label> bills
-      <br />
+        <div style="width: 30%; display: inline-block"></div>
 
-      <label class="radio_container">
-        <input type="radio" />
-        <span class="radio_mark"></span>
-      </label> spending × bills
-      <br />
+        <label class="radio_container">
+          <input type="radio" name="time_frame" value="all" />
+          <span class="radio_mark"></span>
+        </label> all time
 
-      <label class="radio_container">
-        <input type="radio" />
-        <span class="radio_mark"></span>
-      </label> ln(spending) × bills
+        <div class="year_slider" id="year_slider">
+          <span>2000</span>
+          <div class="range_wrap">
+            <input
+              type="range"
+              id="year_input"
+              name="year"
+              min="2000"
+              max="2021"
+              step="1"
+              value="2021"
+            />
+            <span class="year_bubble" id="year_bubble" aria-hidden="true">2021</span>
+          </div>
+          <span>2021</span>
+        </div>
+      </div>
+
+      <div class="config-entry">
+        How should edges be weighed?
+        <br />
+
+        <label class="radio_container">
+          <input type="radio" name="weight" value="bills" checked="checked" />
+          <span class="radio_mark"></span>
+        </label> bills
+        <br />
+
+        <label class="radio_container">
+          <input type="radio" name="weight" value="spending_bills" />
+          <span class="radio_mark"></span>
+        </label> spending × bills
+        <br />
+
+        <label class="radio_container">
+          <input type="radio" name="weight" value="ln_spending_bills" />
+          <span class="radio_mark"></span>
+        </label> ln(spending) × bills
+      </div>
     </div>
   </div>
 </Layout>
+
+<script>
+  const slider = document.getElementById("year_slider") as HTMLDivElement;
+  const yearInput = document.getElementById("year_input") as HTMLInputElement;
+  const yearBubble = document.getElementById("year_bubble") as HTMLSpanElement;
+  const timeFrameRadios = document.querySelectorAll<HTMLInputElement>(
+    'input[name="time_frame"]',
+  );
+
+  // Thumb diameter in CSS is 1.5em; match it here so the year bubble tracks
+  // the thumb centre across the whole track (the thumb can't leave the track).
+  const THUMB_EM = 1.5;
+
+  function positionBubble() {
+    const min = +yearInput.min;
+    const max = +yearInput.max;
+    const val = +yearInput.value;
+    const pct = (val - min) / (max - min);
+    const fontPx = parseFloat(getComputedStyle(yearInput).fontSize);
+    const thumbPx = THUMB_EM * fontPx;
+    const track = yearInput.clientWidth;
+    yearBubble.textContent = String(val);
+    yearBubble.style.left = `${pct * (track - thumbPx) + thumbPx / 2}px`;
+  }
+
+  function syncSlider() {
+    const annual = document.querySelector<HTMLInputElement>(
+      'input[name="time_frame"]:checked',
+    )?.value === "annual";
+    slider.hidden = !annual;
+    if (annual) positionBubble();
+  }
+
+  timeFrameRadios.forEach((r) => r.addEventListener("change", syncSlider));
+  yearInput.addEventListener("input", positionBubble);
+  window.addEventListener("resize", positionBubble);
+
+  syncSlider();
+</script>

@@ -5,7 +5,7 @@
 // value (e.g. handing a hex string to d3.scaleOrdinal).
 export const colors = {
   background: "#f2f2f2",
-  accentRed: "#c0392b",
+  accentRed: "#972020",
   accentGreen: "#2fb42fff",
   linkStroke: "#999999",
   nodeStroke: "#000000",
