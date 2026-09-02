@@ -280,6 +280,33 @@ const sealSrc = (value) =>
     width: 5em;
     font-variant-numeric: tabular-nums;
   }
+
+  /* explorer + flow-graph sit side-by-side; flex-wrap drops them to a stack
+     once the row is too narrow for both (each wants >= 22rem). metadata is
+     forced full-width and below both via order + a 100% flex-basis. */
+  .explorer-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+
+    .window {
+      color: white;
+      background-color: var(--charcoal);
+      border-radius: 20px;
+      margin: .25rem;
+    }
+
+    .explorer,
+    .flow-graph {
+      flex: 1 1 22rem;
+      min-width: 0;
+    }
+
+    .metadata {
+      order: 1;
+      flex: 1 1 100%;
+    }
+  }
 </style>
 
 <Layout>
@@ -408,7 +435,23 @@ const sealSrc = (value) =>
 
   <br />
   <br />
-  explorer here!
+
+  <div class="explorer-container">
+
+    <div class="window explorer">
+      explorer
+    </div>
+
+    <div class="window metadata">
+      metadata
+    </div>
+
+    <div class="window flow-graph">
+      flow graph
+    </div>
+
+  </div>
+
   <br> <br>
 </Layout>
 
