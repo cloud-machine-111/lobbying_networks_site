@@ -2,8 +2,12 @@
 import Layout from "../layouts/Layout.astro";
 import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 import Header from "../components/Header.astro";
-import AnnualFlowChart from "../components/annualflow_charts.astro";
 import SiteTitle from "../components/SiteTitle.astro";
+
+// public/seals/<slug>_seal.png -- `&` is stripped from the agency value so the
+// filename (and its URL) carries no characters a static host might choke on.
+const sealSrc = (value) =>
+  `/lobbying_networks_site/seals/${value.replace(/&/g, "and")}_seal.png`;
 ---
 
 <style>
@@ -17,16 +21,12 @@ import SiteTitle from "../components/SiteTitle.astro";
     margin-right: calc(50% - 50vw);
     box-sizing: border-box;
     background: #e5e5e5;
-    padding: 1.5rem;
+    padding: 2rem;
     display: flex;
     flex-direction: row;
-    gap: 2rem;
-    font-weight: 100px;
+    gap: 1rem;
+    font-weight: 100;
     font-style: italic;
-    .rhs {
-      color: var(--accentBrown);
-      font-size: smaller;
-    }
   }
 
   /* 30:70 split of the space left after the flex gap. */
@@ -44,6 +44,8 @@ import SiteTitle from "../components/SiteTitle.astro";
   .config .rhs {
     flex: 7 1 0;
     min-width: 0;
+    color: var(--accentBrown);
+    font-size: smaller;
   }
 
   /* Each option in "Build a network..." gets a green dashed, rounded box.
@@ -51,10 +53,23 @@ import SiteTitle from "../components/SiteTitle.astro";
   .config-entry {
     width: 80%;
     box-sizing: border-box;
-    margin: 1rem 0;
-    padding: 1rem;
+    margin: .8rem 0;
+    padding:.8rem;
     border: 1px dashed var(--accentGreen);
     border-radius: 12px;
+  }
+
+  /* First two boxes sit side-by-side; flex-wrap drops them back to a stack
+     once the column is too narrow to fit both (each wants >= 16rem). */
+  .config-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .config-row .config-entry {
+    width: auto;
+    flex: 1 1 16rem;
   }
 
   /* Too narrow: stack, lhs above rhs (lhs comes first in the DOM). */
@@ -104,20 +119,38 @@ import SiteTitle from "../components/SiteTitle.astro";
     box-shadow: inset 0 0 0 2px #e5e5e5;
   }
 
-  /* Year slider: only shown while the "a year" time frame is selected.
-     The draggable thumb is a circle; the current year sits right under it
-     (.year_bubble, positioned from JS). Matching circles mark each end. */
+  /* Year slider: interactive while the "a year" time frame is selected, inert
+     (see .year_slider.disabled below) while "all time" is selected.
+     The draggable thumb is a small triangle that sits just below the track and
+     points up at it; the current year sits right under the triangle
+     (.year_bubble, positioned from JS). Circles mark each end. */
   .year_slider {
-    margin-top: 1.4rem;
-    margin-bottom: 1.6rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    font-style: italic;
   }
 
-  .year_slider[hidden] {
-    display: none;
+  /* "all time" selected: the slider stays in place but goes inert -- the
+     track turns accentRed, the triangle thumb and year bubble disappear, and
+     pointer/keyboard input is blocked. */
+  .year_slider.disabled input[type="range"] {
+    background: var(--accentRed);
+    pointer-events: none;
+    cursor: default;
+  }
+
+  .year_slider.disabled input[type="range"]::-webkit-slider-thumb {
+    visibility: hidden;
+  }
+
+  .year_slider.disabled input[type="range"]::-moz-range-thumb {
+    visibility: hidden;
+  }
+
+  .year_slider.disabled .year_bubble {
+    visibility: hidden;
   }
 
   .range_wrap {
@@ -140,6 +173,8 @@ import SiteTitle from "../components/SiteTitle.astro";
     background: var(--accentBrown);
     transform: translateY(-50%);
     pointer-events: none;
+    /* sit in front of the range track (z-index: 1) */
+    z-index: 2;
   }
 
   .range_wrap::before {
@@ -164,34 +199,73 @@ import SiteTitle from "../components/SiteTitle.astro";
     outline: none;
   }
 
+  /* Triangle thumb: a solid box clipped to an upward-pointing triangle.
+     translateY drops it below the 2px track so its apex points up at the
+     line -- use transform, not margin-top: Firefox ignores margin on
+     ::-moz-range-thumb. (A 0 x 0 border-triangle leaves a pale ghost
+     triangle in webkit, so clip-path a real box instead.) */
   .year_slider input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 1em;
-    height: 1em;
+    width: 0.9em;
+    height: 0.4em;
     border: none;
-    border-radius: 50%;
+    border-radius: 0;
     background: var(--accentBrown);
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    transform: translateY(1em);
     cursor: grab;
   }
 
   .year_slider input[type="range"]::-moz-range-thumb {
-    width: 1em;
-    height: 1em;
+    width: 0.9em;
+    height: 0.4em;
     border: none;
-    border-radius: 50%;
+    border-radius: 0;
     background: var(--accentBrown);
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    transform: translateY(1em);
     cursor: grab;
   }
 
   .year_bubble {
     position: absolute;
-    top: calc(50% + 1.4em);
+    top: calc(50% + 1.3em);
     transform: translateX(-50%);
     pointer-events: none;
-    font-weight: 100;
     font-variant-numeric: tabular-nums;
-    color: var(--accentBrown);
+  }
+
+  /* Interest-group selector box: question + dropdown on the left (LHS),
+     agency seal on the right (RHS). */
+  .agency-entry {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .agency-entry__main {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  /* long option labels can push the <select> wider than its column -- clamp it */
+  .agency-entry__main select {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .agency-entry__seal {
+    flex: 0 0 30%;
+    min-width: 0;
+  }
+
+  .agency-entry__seal img {
+    max-width: 100%;
+    /* never taller than four lines of text */
+    max-height: 6lh;
+    height: auto;
+    object-fit: contain;
   }
 
   /* match the <select> box in Layout.astro (same border, radius, padding...) */
@@ -224,8 +298,8 @@ import SiteTitle from "../components/SiteTitle.astro";
         explore networks
       </div>
 
-      <p>
-        From 2000-2021, across 12 federal environmental agencies, explore the
+      <p style="font-size: smaller;">
+        From 2006-2021, across 12 federal environmental agencies, explore the
         communities of lobbyists who've been interested in the same groups of
         bills.
         <br />
@@ -239,52 +313,58 @@ import SiteTitle from "../components/SiteTitle.astro";
     <div class="rhs">
       <div class="label">Build a network...</div>
 
-      <div class="config-entry">
-        for interest groups targeting which agency? &nbsp;
-        <!-- <br /> -->
-        <select id="agency">
-          {AGENCIES.map((a) => <option value={a.value}>{a.label}</option>)}
-          <option value={ALL_AGENCIES_VALUE}>All agencies</option>
-        </select>
-      </div>
-
-      <div class="config-entry">
-        across what time frame?
-        <br />
-        <label class="radio_container">
-          <input
-            type="radio"
-            name="time_frame"
-            value="annual"
-            checked="checked"
-          />
-          <span class="radio_mark"></span>
-        </label> a year
-
-        <div style="width: 30%; display: inline-block"></div>
-
-        <label class="radio_container">
-          <input type="radio" name="time_frame" value="all" />
-          <span class="radio_mark"></span>
-        </label> all time
-
-        <div class="year_slider" id="year_slider">
-          <span>2000</span>
-          <div class="range_wrap">
-            <input
-              type="range"
-              id="year_input"
-              name="year"
-              min="2000"
-              max="2021"
-              step="1"
-              value="2021"
-            />
-            <span class="year_bubble" id="year_bubble" aria-hidden="true"
-              >2021</span
-            >
+      <div class="config-row">
+        <div class="config-entry agency-entry">
+          <div class="agency-entry__main">
+            for interest groups targeting which agency?
+            <br /> <br />
+            <select id="agency">
+              {AGENCIES.map((a) => <option value={a.value}>{a.label}</option>)}
+              <option value={ALL_AGENCIES_VALUE}>All agencies</option>
+            </select>
           </div>
-          <span>2021</span>
+          <div class="agency-entry__seal">
+            <img
+              id="agency_seal"
+              src={sealSrc(AGENCIES[0].value)}
+              alt={`${AGENCIES[0].label} seal`}
+            />
+          </div>
+        </div>
+
+        <div class="config-entry">
+          across what time frame?
+          <br /> <br />
+          <label class="radio_container">
+            <input type="radio" name="time_frame" value="annual" checked />
+            <span class="radio_mark"></span>
+          </label> a year
+
+          <div style="width: 30%; display: inline-block"></div>
+
+          <label class="radio_container">
+            <input type="radio" name="time_frame" value="all" />
+            <span class="radio_mark"></span>
+          </label> all time
+
+          <div class="year_slider" id="year_slider">
+            <span>2006</span>
+            <div class="range_wrap">
+              <input
+                type="range"
+                id="year_input"
+                name="year"
+                min="2006"
+                max="2021"
+                step="1"
+                value="2010"
+              />
+              <span class="year_bubble" id="year_bubble" aria-hidden="true"
+                >2010</span
+              >
+            </div>
+            <span>2021</span>
+          </div>
         </div>
       </div>
 
@@ -293,7 +373,7 @@ import SiteTitle from "../components/SiteTitle.astro";
         <br />
 
         <label class="radio_container">
-          <input type="radio" name="weight" value="bills" checked="checked" />
+          <input type="radio" name="weight" value="bills" checked />
           <span class="radio_mark"></span>
         </label> bills
         <br />
@@ -340,9 +420,9 @@ import SiteTitle from "../components/SiteTitle.astro";
     'input[name="time_frame"]',
   );
 
-  // Thumb diameter in CSS is 1.5em; match it here so the year bubble tracks
+  // Triangle thumb is 0.9em wide in CSS; match it here so the year bubble tracks
   // the thumb centre across the whole track (the thumb can't leave the track).
-  const THUMB_EM = 1.5;
+  const THUMB_EM = 0.9;
 
   function positionBubble() {
     const min = +yearInput.min;
@@ -361,9 +441,32 @@ import SiteTitle from "../components/SiteTitle.astro";
       document.querySelector<HTMLInputElement>(
         'input[name="time_frame"]:checked',
       )?.value === "annual";
-    slider.hidden = !annual;
+    slider.classList.toggle("disabled", !annual);
+    yearInput.disabled = !annual;
     if (annual) positionBubble();
   }
+
+  // Swap the seal image whenever the agency changes. Files live in
+  // public/seals/ as `<agency value>_seal.png`, with `&` rewritten to "and"
+  // (matches sealSrc in the frontmatter); "All agencies" has no seal.
+  const agencySelect = document.getElementById("agency") as HTMLSelectElement;
+  const agencySeal = document.getElementById("agency_seal") as HTMLImageElement;
+  const ALL_AGENCIES_VALUE = "x_agy";
+
+  function syncSeal() {
+    const opt = agencySelect.selectedOptions[0];
+    if (!opt || opt.value === ALL_AGENCIES_VALUE) {
+      agencySeal.hidden = true;
+      agencySeal.removeAttribute("src");
+      return;
+    }
+    agencySeal.hidden = false;
+    agencySeal.src = `/lobbying_networks_site/seals/${opt.value.replace(/&/g, "and")}_seal.png`;
+    agencySeal.alt = `${opt.textContent ?? ""} seal`;
+  }
+
+  agencySelect.addEventListener("change", syncSeal);
+  syncSeal();
 
   timeFrameRadios.forEach((r) => r.addEventListener("change", syncSlider));
   yearInput.addEventListener("input", positionBubble);

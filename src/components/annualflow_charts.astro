@@ -286,7 +286,7 @@ const { normalize_checkbox_selector, weight_selector } = Astro.props;
                 };
             });
 
-            x.domain(years[0] !== undefined && Number.isFinite(years[0]) ? years : [2000, 2021]);
+            x.domain(years[0] !== undefined && Number.isFinite(years[0]) ? years : [2006, 2021]);
 
             const normalize = normalizeCheckbox?.checked ?? false;
             if (normalize) {

@@ -35,7 +35,7 @@ export function fetchGraphJSONFromR2(datasetPath) {
 // base weights are final_{agency}_{yr}_infomap.json (no log/nolog split); spending weights are
 // final_{log|nolog}_{agency}_{yr}_infomap.json. Not every agency/year combo exists.
 export const ANNUAL_WEIGHT_TYPES = ["base", "spending"];
-export const ANNUAL_YEARS = Array.from({ length: 22 }, (_, i) => 2000 + i);
+export const ANNUAL_YEARS = Array.from({ length: 16 }, (_, i) => 2006 + i);
 export const LOG_OPTIONS = ["logged", "unlogged"];
 
 export function annualPerAgencyPath(agency, weightType, yr, log) {

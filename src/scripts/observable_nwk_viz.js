@@ -117,12 +117,23 @@ nodes = nodes.filter(d => linkNodeIds.has(d.id));
     .attr("width", width)
     .attr("height", height)
     .attr("viewBox", [-width / 2, -height / 2, width, height])
-    .attr("style", "max-width: 100%; height: auto;")
+    .attr("preserveAspectRatio", "xMidYMid meet")
+    // width:100% + height:auto + a fixed viewBox => the graph scales fluidly with
+    // whatever width its wrapper ends up at, so it tracks browser zoom and window
+    // resizing instead of sitting locked at 728px. The force sim keeps running in
+    // viewBox coordinates; only the on-screen size changes.
+    .attr("style", "display: block; width: 100%; height: auto;")
     .style("background", "#1c1c1c");
 
   const panel = d3.create("div")
     .attr("class", "info-panel")
-    .style("width", "360px")
+    // Grows to take up slack next to the graph, but never past its natural 360px
+    // and never below the ~300px its bar charts need — past that the container
+    // wraps it onto its own line (see final assembly).
+    .style("flex", "1 1 320px")
+    .style("min-width", "300px")
+    .style("max-width", "360px")
+    .style("box-sizing", "border-box")
     .style("padding", "8px")
     // .style("font-family", "sans-serif")
     .style("font-family", FONT_FAMILY)
@@ -835,14 +846,33 @@ nodes = nodes.filter(d => linkNodeIds.has(d.id));
   const container = d3.create("div")
     .style("display", "flex")
     .style("flex-direction", "row")
-    .style("width", "fit-content")
+    // Fluid width, capped at the graph + panel's natural size, wrapping the panel
+    // under the graph once there isn't room for both side by side. This is what
+    // lets the whole thing shrink/grow with browser zoom and window width.
+    .style("flex-wrap", "wrap")
+    .style("align-items", "flex-start")
+    .style("gap", "8px")
+    .style("width", "100%")
+    .style("max-width", `${width + 360 + 8}px`)
+    .style("margin", "0 auto")
     .style("position", "relative")
     .style("background", "#000");
 
-  container.node().appendChild(svg.node());
+  // The svg shares the flex row with the panel; the floating bill box and zoom
+  // controls are positioned against this wrapper so they stay pinned to the graph
+  // (not to the bottom of the panel once it wraps underneath).
+  const svgWrap = d3.create("div")
+    .style("position", "relative")
+    .style("flex", "1 1 420px")
+    .style("min-width", "0")
+    .style("align-self", "stretch");
+
+  svgWrap.node().appendChild(svg.node());
+  svgWrap.node().appendChild(billBox.node());
+  svgWrap.node().appendChild(zoomControls.node());
+
+  container.node().appendChild(svgWrap.node());
   container.node().appendChild(panel.node());
-  container.node().appendChild(billBox.node());
-  container.node().appendChild(zoomControls.node());
 
   return container.node();
 }
