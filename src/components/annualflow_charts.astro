@@ -18,6 +18,11 @@ interface Props {
     // weight_type/spending props below when set; left unset, those props (or show_controls's own
     // .af_weight_type/.af_log selects) are used instead.
     weight_selector?: string;
+    // CSS selector for an external <select> of agency values (underscored AGENCIES.value, or
+    // ALL_AGENCIES_VALUE) this instance should follow — mirrors weight_selector, for pages that
+    // drive the chart from a shared agency control (see explorer_2.astro). Takes precedence over
+    // the agency prop / show_controls's own .af_agency select; left unset, those are used.
+    agency_selector?: string;
 }
 // Q - are astro props exactly like react props? are they a feature outside of vanilla js?
 
@@ -31,7 +36,7 @@ const {
     spending = "unlogged",
     agency = ALL_AGENCIES_VALUE,
 } = Astro.props;
-const { normalize_checkbox_selector, weight_selector } = Astro.props;
+const { normalize_checkbox_selector, weight_selector, agency_selector } = Astro.props;
 ---
 
 <div
@@ -42,6 +47,7 @@ const { normalize_checkbox_selector, weight_selector } = Astro.props;
     data-agency={agency}
     data-normalize-selector={normalize_checkbox_selector}
     data-weight-selector={weight_selector}
+    data-agency-selector={agency_selector}
 >
 {show_controls && (
         <div style={`width: ${width}px`}>
@@ -227,14 +233,53 @@ const { normalize_checkbox_selector, weight_selector } = Astro.props;
             ? document.querySelector<HTMLSelectElement>(weightSelectorAttr)
             : null;
 
+        // An external agency <select> (see annualflow_charts.astro's agency_selector prop /
+        // explorer_2.astro's shared #agency control) that, if present, takes precedence over
+        // both agencySelect and fixedAgency.
+        const agencySelectorAttr = root.dataset.agencySelector;
+        const externalAgencySelect = agencySelectorAttr
+            ? document.querySelector<HTMLSelectElement>(agencySelectorAttr)
+            : null;
+
         const svg = d3.select(container).append("svg")
             .attr("viewBox", [0, 0, width, height])
             .style("width", "100%")
             .style("height", "auto");
 
+        // Grid groups are appended first so the year/share gridlines sit behind the axes,
+        // data lines and year markers. They reuse the axis tick positions (see redraw).
+        const GRID_STROKE = "#e6e6e6";
+        const xGridG = svg.append("g")
+            .attr("transform", `translate(0,${height - margin.bottom})`)
+            .attr("stroke", GRID_STROKE)
+            .attr("shape-rendering", "crispEdges");
+        const yGridG = svg.append("g")
+            .attr("transform", `translate(${margin.left},0)`)
+            .attr("stroke", GRID_STROKE)
+            .attr("shape-rendering", "crispEdges");
+
         const xAxisG = svg.append("g").attr("transform", `translate(0,${height - margin.bottom})`);
         const yAxisG = svg.append("g").attr("transform", `translate(${margin.left},0)`);
         const linesG = svg.append("g").attr("fill", "none").attr("stroke-width", 2);
+        // Per-year markers on top of the lines; each shows its flow share on hover.
+        const markersG = svg.append("g");
+
+        // Matches the network explorer's tooltip (see nwk_explorer.js) for a consistent look:
+        // white card, thin grey border, serif type, positioned off the page-level cursor.
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "af-tooltip")
+            .style("position", "absolute")
+            .style("pointer-events", "none")
+            .style("background", "white")
+            .style("color", "#111")
+            .style("border", "1px solid #ccc")
+            .style("border-radius", "4px")
+            .style("padding", "4px 8px")
+            .style("font-family", "'Times New Roman', Times, serif")
+            .style("font-size", "12px")
+            .style("box-shadow", "0 1px 4px rgba(0,0,0,0.2)")
+            .style("z-index", 1000)
+            .style("opacity", 0);
 
         const line = d3.line<{ year: number; value: number }>()
             .x((d) => x(d.year))
@@ -260,7 +305,7 @@ const { normalize_checkbox_selector, weight_selector } = Astro.props;
                 : undefined;
             const weightType = externalWeight?.weightType ?? weightTypeSelect?.value ?? fixedWeightType ?? "base";
             const log = externalWeight?.log ?? logSelect?.value ?? fixedSpending ?? "unlogged";
-            const agency = agencySelect?.value ?? fixedAgency ?? ALL_AGENCIES_VALUE;
+            const agency = externalAgencySelect?.value ?? agencySelect?.value ?? fixedAgency ?? ALL_AGENCIES_VALUE;
             const agencyLabel = agencyLabels[agency] ?? agency;
             const selectedTypes = orgTypeCheckboxes.length
                 ? orgTypeCheckboxes.filter((c) => c.checked).map((c) => c.value)
@@ -295,11 +340,21 @@ const { normalize_checkbox_selector, weight_selector } = Astro.props;
                 y.domain([0, d3.max(series.flatMap((s) => s.values.map((v) => v.value))) || 1]).nice();
             }
 
-            xAxisG.call(d3.axisBottom(x).ticks(Math.min(yearRange.length, 10)).tickFormat(d3.format("d")));
+            const xTicks = Math.min(yearRange.length, 10);
+            xAxisG.call(d3.axisBottom(x).ticks(xTicks).tickFormat(d3.format("d")));
             applyLabelRotation(container!.getBoundingClientRect().width);
             // A fixed 0-100% domain lands on round ticks (0%, 20%, ...), so no extra precision is
             // needed there; an auto-scaled domain can otherwise round small shares down to "0%".
             yAxisG.call(d3.axisLeft(y).ticks(6).tickFormat(d3.format(normalize ? ".0%" : ".1%")));
+
+            // Gridlines: same tick positions as the axes above, drawn full width/height with no
+            // labels. Rebuilt each redraw so they track the current year range and y-domain.
+            const innerH = height - margin.top - margin.bottom;
+            const innerW = width - margin.left - margin.right;
+            xGridG.call(d3.axisBottom(x).ticks(xTicks).tickSize(-innerH).tickFormat(() => ""));
+            yGridG.call(d3.axisLeft(y).ticks(6).tickSize(-innerW).tickFormat(() => ""));
+            xGridG.select(".domain").remove();
+            yGridG.select(".domain").remove();
 
             if (titleEl) titleEl.textContent = buildTitle(agencyLabel, weightType, log, selectedTypes);
 
@@ -308,6 +363,37 @@ const { normalize_checkbox_selector, weight_selector } = Astro.props;
                 .join("path")
                 .attr("stroke", (d) => orgColorMap[d.org_typ as keyof typeof orgColorMap] ?? "#cccccc")
                 .attr("d", (d) => line(d.values));
+
+            // One marker per (org type, year) point; hovering reports that year's flow share.
+            const markerFmt = d3.format(normalize ? ".1%" : ".2%");
+            const markerData = series.flatMap((s) =>
+                s.values.map((v) => ({ org_typ: s.org_typ, year: v.year, value: v.value })),
+            );
+            markersG.selectAll<SVGCircleElement, typeof markerData[number]>("circle")
+                .data(markerData, (d) => `${d.org_typ}:${d.year}`)
+                .join("circle")
+                .attr("r", 3)
+                .attr("cx", (d) => x(d.year))
+                .attr("cy", (d) => y(d.value))
+                .attr("fill", (d) => orgColorMap[d.org_typ as keyof typeof orgColorMap] ?? "#cccccc")
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 1)
+                .style("cursor", "pointer")
+                .on("mouseenter", function (_event, d) {
+                    d3.select(this).attr("r", 5);
+                    tooltip.style("opacity", 1).html(
+                        `<b>${orgTypeLabel(d.org_typ)}</b><br>${d.year}: ${markerFmt(d.value)}`,
+                    );
+                })
+                .on("mousemove", (event) => {
+                    tooltip
+                        .style("left", `${event.pageX + 12}px`)
+                        .style("top", `${event.pageY - 20}px`);
+                })
+                .on("mouseleave", function () {
+                    d3.select(this).attr("r", 3);
+                    tooltip.style("opacity", 0);
+                });
         }
 
         [agencySelect, weightTypeSelect, logSelect].forEach((el) => {
@@ -316,6 +402,7 @@ const { normalize_checkbox_selector, weight_selector } = Astro.props;
         orgTypeCheckboxes.forEach((c) => c.addEventListener("change", redraw));
         normalizeCheckbox?.addEventListener("change", redraw);
         externalWeightSelect?.addEventListener("change", redraw);
+        externalAgencySelect?.addEventListener("change", redraw);
 
         // Grid facet cells and the shared normalize checkbox can change this chart's rendered
         // width without firing any of the listeners above, so watch it directly.

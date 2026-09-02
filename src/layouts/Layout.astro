@@ -129,7 +129,6 @@ const { style } = Astro.props;
 	}
 
 	.explorer {
-		padding: 8vw;
 		.params {
 			padding: 15px 0px;
 			/* border: solid 1px white; */
@@ -143,7 +142,12 @@ const { style } = Astro.props;
 		height: 100%;
 		margin: 0 auto;
 		background-color: var(--background);
-		overflow-x: hidden;
+		/* `clip`, not `hidden`: `overflow-x: hidden` makes `overflow-y` compute to
+		   `auto`, turning <body> into a scroll container — that reparents any
+		   `position: sticky` descendant (the .config bar on the explorer page) to
+		   <body> instead of the viewport, so it never sticks. `clip` hides the
+		   full-bleed overflow the same way without the scroll-container side effect. */
+		overflow-x: clip;
 	}
 
 	#canvas {

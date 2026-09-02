@@ -3,6 +3,7 @@ import Layout from "../layouts/Layout.astro";
 import { AGENCIES, ALL_AGENCIES_VALUE } from "../scripts/agencies.js";
 import Header from "../components/Header.astro";
 import SiteTitle from "../components/SiteTitle.astro";
+import AnnualFlowChart from "../components/annualflow_charts.astro";
 
 // public/seals/<slug>_seal.png -- `&` is stripped from the agency value so the
 // filename (and its URL) carries no characters a static host might choke on.
@@ -17,16 +18,68 @@ const sealSrc = (value) =>
        50% = half the content-area width, 50vw = half the viewport -> the
        difference is exactly the offset to each screen edge, no hardcoded 8vw. */
     width: 100vw;
+    margin-top: -1lh;
     margin-left: calc(50% - 51vw);
     margin-right: calc(50% - 50vw);
     box-sizing: border-box;
     background: #e5e5e5;
-    padding: 2rem;
+    padding: 2rem 2rem .8rem 2rem;
     display: flex;
     flex-direction: row;
     gap: 1rem;
     font-weight: 100;
     font-style: italic;
+    font-size: .9rem;
+    line-height: .8lh;
+    /* Freeze the config to the top of the viewport while the rest of the page
+       scrolls past under it. The opaque gray background hides that content;
+       z-index keeps it above the explorer windows and the fixed site header. */
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    /* leave room so the collapse toggle (absolute, top-right) never overlaps text */
+    padding-right: 7rem;
+  }
+
+  /* Collapse toggle: pinned top-right of the gray box, same green-outline look
+     as the <select>s. Text ("collapse" / "expand") is swapped from JS. */
+  .config__toggle {
+    position: absolute;
+    top: .6rem;
+    right: .9rem;
+    z-index: 1;
+    font-family: "Times New Roman", Times, serif;
+    font-size: .8rem;
+    font-style: normal;
+    color: var(--accentGreen);
+    background: transparent;
+    border: 1.5px solid var(--accentGreen);
+    border-radius: 6px;
+    padding: .2em .7em;
+    cursor: pointer;
+  }
+
+  /* Shown only while collapsed, in place of the hidden lhs/rhs columns. */
+  .config__collapsed-hint {
+    display: none;
+    align-self: center;
+    font-style: normal;
+    font-weight: 400;
+    color: var(--accentBrown);
+  }
+
+  .config.collapsed {
+    padding-top: .55rem;
+    padding-bottom: .55rem;
+  }
+
+  .config.collapsed .lhs,
+  .config.collapsed .rhs {
+    display: none;
+  }
+
+  .config.collapsed .config__collapsed-hint {
+    display: block;
   }
 
   /* 30:70 split of the space left after the flex gap. */
@@ -41,41 +94,95 @@ const sealSrc = (value) =>
     container-type: inline-size;
   }
 
+  /* Collapsible "how to use" blurb under the intro sentence. */
+  .config .intro-more {
+    font-size: .8rem;
+  }
+
+  .config .intro-more > summary {
+    cursor: pointer;
+    font-style: normal;
+    font-weight: 400;
+    color: var(--accentGreen);
+    list-style: none;
+  }
+
+  .config .intro-more > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .config .intro-more > summary::before {
+    content: "\25B8 "; /* right-pointing triangle, rotates when open */
+    display: inline-block;
+    transition: transform .15s ease;
+  }
+
+  .config .intro-more[open] > summary::before {
+    transform: rotate(90deg);
+  }
+
   .config .rhs {
-    flex: 7 1 0;
+    flex: 13 1 0;
     min-width: 0;
     color: var(--accentBrown);
     font-size: smaller;
+    /* sizing reference for the .config-row container queries below */
+    container-type: inline-size;
   }
 
   /* Each option in "Build a network..." gets a green dashed, rounded box.
      All the same width (80% of the rhs column) and not touching each other. */
   .config-entry {
-    width: 80%;
+    width: 70%;
     box-sizing: border-box;
-    margin: .8rem 0;
+    margin: .7rem 0;
     padding:.8rem;
-    border: 1px dashed var(--accentGreen);
+    border: 1.5px dashed var(--accentGreen);
     border-radius: 12px;
   }
 
-  /* First two boxes sit side-by-side; flex-wrap drops them back to a stack
-     once the column is too narrow to fit both (each wants >= 16rem). */
+  /* Grid (not flex-wrap) so the boxes never land 3-on-a-row with the 4th
+     wrapping alone. Three fixed layouts, switched on the .rhs container width:
+       - wide  : all four in a row, each capped narrower than its cell so the
+                 row has breathing room (space-between spreads the slack)
+       - mid   : 2 + 2
+       - narrow: one per row  */
   .config-row {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
+  }
+
+  @container (min-width: 56rem) {
+    .config-row {
+      grid-template-columns: repeat(4, minmax(0, 24rem));
+      justify-content: space-between;
+    }
+  }
+
+  @container (max-width: 28rem) {
+    .config-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 
   .config-row .config-entry {
     width: auto;
-    flex: 1 1 16rem;
+  }
+
+  /* Weight box: one radio option per line. */
+  .weight-entry .weight-option {
+    display: block;
+    margin-top: 0.4rem;
   }
 
   /* Too narrow: stack, lhs above rhs (lhs comes first in the DOM). */
-  @media (max-width: 800px) {
+  @media (max-width: 600px) {
     .config {
       flex-direction: column;
+      /* toggle sits above the stacked columns here, so less side room needed */
+      padding-right: 2rem;
+      padding-top: 2.8rem;
     }
 
     .config .lhs {
@@ -263,7 +370,7 @@ const sealSrc = (value) =>
   .agency-entry__seal img {
     max-width: 100%;
     /* never taller than four lines of text */
-    max-height: 6lh;
+    max-height: 5lh;
     height: auto;
     object-fit: contain;
   }
@@ -281,30 +388,94 @@ const sealSrc = (value) =>
     font-variant-numeric: tabular-nums;
   }
 
-  /* explorer + flow-graph sit side-by-side; flex-wrap drops them to a stack
-     once the row is too narrow for both (each wants >= 22rem). metadata is
-     forced full-width and below both via order + a 100% flex-basis. */
+  /* Row 1: explorer + metadata side-by-side (flex-wrap stacks them once the row
+     is too narrow -- see the container query below). flow-graph always sits on
+     its own full-width row beneath both (100% flex-basis + order), never beside
+     a sibling. All windows size themselves off their content and the flex
+     layout -- no fixed dimensions; the network SVG scales via its viewBox. */
   .explorer-container {
     display: flex;
     flex-wrap: wrap;
     gap: .5rem;
+    /* stretch (the default) so explorer + metadata share the taller one's
+       height whenever they sit on the same row; metadata scrolls internally
+       past that height (see below). Per-line, so the full-width flow-graph
+       row and the wrapped-metadata case are unaffected. */
+    align-items: stretch;
+    /* let .metadata switch layout off the container's width, not the viewport's */
+    container-type: inline-size;
 
     .window {
       color: white;
       background-color: var(--charcoal);
       border-radius: 20px;
-      margin: .25rem;
+      margin: .1rem;
+      /* clip the injected SVG / panel to the rounded corners */
+      overflow: hidden;
     }
 
-    .explorer,
-    .flow-graph {
+    /* Definite height (not max-height): the injected svgWrap is height:100% and
+       the svg inside is max-height:100%, so this value caps the graph. The
+       square graph letterboxes to fit ("...meet") and the floating zoom
+       controls / bill box stay pinned inside this clipped box. */
+    .explorer {
       flex: 1 1 22rem;
       min-width: 0;
+      height: 22lh;
     }
 
+    /* Side-by-side with the explorer: metadata is a 30% column, explorer takes
+       the rest. min-height: 0 + overflow-y lets its content scroll inside its
+       own 30lh cap rather than pushing the row taller. */
     .metadata {
-      order: 1;
+      flex: 0 1 30%;
+      min-width: 0;
+      min-height: 0;
+      max-height: 22lh;
+      overflow-y: auto;
+    }
+
+    /* Always a full-width row of its own, ordered after explorer + metadata. */
+    .flow-graph {
       flex: 1 1 100%;
+      min-width: 0;
+      max-width: 25lh;
+      order: 2;
+      padding: 1rem 1.25rem;
+    }
+
+    /* The flow chart (<AnnualFlowChart>) is plain d3 with d3's default near-black
+       axis ink -- recolor its runtime-injected axes/labels so they read on the
+       charcoal window, and center the fixed-width chart. :global -- d3 builds the
+       <g class="tick"> / .domain nodes after Astro has scoped this block, so they
+       never carry the scope attribute a bare selector would look for. */
+    .flow-graph :global(.af_chart) {
+      margin: 0 auto;
+    }
+
+    .flow-graph :global(.af_title) {
+      color: #fff;
+      margin-top: 0.5rem;
+    }
+
+    .flow-graph :global(.tick text) {
+      fill: #cfcfcf;
+    }
+
+    .flow-graph :global(.tick line),
+    .flow-graph :global(.domain) {
+      stroke: #666;
+    }
+
+    /* Container too narrow to seat a 30% panel next to the >= 22rem explorer:
+       metadata drops to its own full-width row below both, no longer height-
+       matched, so give it its own cap. */
+    @container (max-width: 34rem) {
+      .metadata {
+        flex-basis: 100%;
+        order: 1;
+        max-height: 30lh;
+      }
     }
   }
 </style>
@@ -313,28 +484,40 @@ const sealSrc = (value) =>
   <Header />
   <h1 style="display: none">Explore</h1>
 
-  <div class="config">
+  <div class="config" id="config">
+    <button
+      type="button"
+      class="config__toggle"
+      id="config_toggle"
+      aria-controls="config"
+      aria-expanded="true">collapse</button>
+    <span class="config__collapsed-hint">network configuration</span>
+
     <div class="lhs">
-      <SiteTitle min="1rem" />
+      <SiteTitle min="1rem" ideal="10cqw" max="6rem" />
 
       <br />
       <div
         class="label"
-        style="background: var(--accentGreen); font-size: clamp(.5rem, 13cqw, 1rem);"
+        style="background: var(--accentGreen); font-size: clamp(.3rem, 13cqw, .8rem);"
       >
         explore networks
       </div>
 
-      <p style="font-size: smaller;">
-        From 2006-2021, across 12 federal environmental agencies, explore the
-        communities of lobbyists who've been interested in the same groups of
-        bills.
-        <br />
-        <br />
-        If you're curious about our methodology, <a
-          href="/lobbying_networks_site/methodology">click</a
-        > to read about it!
+      <p style="font-size: .8rem; line-height: 1lh;">
+        Across year and federal environmental agency, explore communities of lobbyists with shared interests in bills.
       </p>
+
+      <details class="intro-more">
+        <summary>How to use this explorer</summary>
+        <p style="font-size: .8rem; line-height: 1lh;">
+          Click on <b style="font-weight: 700">two lobbyists sharing an edge</b> to explore bills they both lobbied on.
+          <br /><br />
+          Click a bill on the right panel to see which actors have lobbied it.
+          <br /><br />
+          <a href="/lobbying_networks_site/methodology">Read</a> about our methodology if you're curious!
+        </p>
+      </details>
     </div>
 
     <div class="rhs">
@@ -343,7 +526,7 @@ const sealSrc = (value) =>
       <div class="config-row">
         <div class="config-entry agency-entry">
           <div class="agency-entry__main">
-            for interest groups targeting which agency?
+            For interest groups targeting which agency?
             <br /> <br />
             <select id="agency">
               {AGENCIES.map((a) => <option value={a.value}>{a.label}</option>)}
@@ -360,7 +543,7 @@ const sealSrc = (value) =>
         </div>
 
         <div class="config-entry">
-          across what time frame?
+          Across what time frame?
           <br /> <br />
           <label class="radio_container">
             <input type="radio" name="time_frame" value="annual" checked />
@@ -393,65 +576,83 @@ const sealSrc = (value) =>
             <span>2021</span>
           </div>
         </div>
-      </div>
 
-      <div class="config-entry">
-        How should edges be weighed?
-        <br />
+        <div class="config-entry weight-entry">
+          How should edges be weighed?
+          <br /> 
 
-        <label class="radio_container">
-          <input type="radio" name="weight" value="bills" checked />
-          <span class="radio_mark"></span>
-        </label> bills
-        <br />
+          <div class="weight-option">
+            <label class="radio_container">
+              <input type="radio" name="weight" value="bills" checked />
+              <span class="radio_mark"></span>
+            </label> bills
+          </div>
 
-        <label class="radio_container">
-          <input type="radio" name="weight" value="spending_bills" />
-          <span class="radio_mark"></span>
-        </label> spending × bills
-        <br />
+          <div class="weight-option">
+            <label class="radio_container">
+              <input type="radio" name="weight" value="spending_bills" />
+              <span class="radio_mark"></span>
+            </label> spending × bills
+          </div>
 
-        <label class="radio_container">
-          <input type="radio" name="weight" value="ln_spending_bills" />
-          <span class="radio_mark"></span>
-        </label> ln(spending) × bills
+          <div class="weight-option">
+            <label class="radio_container">
+              <input type="radio" name="weight" value="ln_spending_bills" />
+              <span class="radio_mark"></span>
+            </label> ln(spending) × bills
+          </div>
+        </div>
+
+        <div class="config-entry">
+          How many nodes shown?
+          <br /> <br />
+          <input
+            type="number"
+            id="nodes_shown"
+            name="nodes_shown"
+            min="1"
+            max="300"
+            step="1"
+            value="20"
+          />
+        </div>
       </div>
     </div>
   </div>
 
   <br />
-  <br />
+  <!-- <br /> -->
 
-  <div class="label">Nodes shown:</div> &nbsp;
-  <input
-    type="number"
-    id="nodes_shown"
-    name="nodes_shown"
-    min="1"
-    max="300"
-    step="1"
-    value="20"
-  />
+  <div class="explorer-container" style="max-width: 70rem;">
 
-  <br />
-  <br />
+    <div class="window explorer" id="nwk-explorer"></div>
 
-  <div class="explorer-container">
-
-    <div class="window explorer">
-      explorer
-    </div>
-
-    <div class="window metadata">
-      metadata
-    </div>
+    <div class="window metadata" id="nwk-metadata"></div>
 
     <div class="window flow-graph">
-      flow graph
-    </div>
+      <!-- Hidden proxy the <AnnualFlowChart> weight_selector watches; kept in sync
+           with the "weight" radios by the flow-chart script block below. -->
+      <select id="flow_weight" hidden>
+        <option value="base">base</option>
+        <option value="spending_unlogged">spending_unlogged</option>
+        <option value="spending_logged">spending_logged</option>
+      </select>
 
+      <AnnualFlowChart
+        show_controls={false}
+        width={760}
+        agency_selector="#agency"
+        weight_selector="#flow_weight"
+      />
+    </div>
   </div>
 
+  hi. problem right now - tractable just annoying - is that I want all 3 components to tile satisfyingly and also appear on the screen at the same time.
+
+  2 options:
+
+  (1) make the selector also appear as a tile
+  (2) don't have all components tile on the same screen, but add scrolly sidebar do jump between them, & freeze but collapse config when you scroll down.
   <br> <br>
 </Layout>
 
@@ -517,6 +718,36 @@ const sealSrc = (value) =>
 
   syncSlider();
 
+  // Collapse toggle for the frozen (sticky) config bar. Collapsed state is
+  // remembered per-browser so it survives reloads.
+  const config = document.getElementById("config") as HTMLDivElement;
+  const configToggle = document.getElementById(
+    "config_toggle",
+  ) as HTMLButtonElement;
+  const CONFIG_COLLAPSED_KEY = "explorer2:configCollapsed";
+
+  function setConfigCollapsed(collapsed: boolean) {
+    config.classList.toggle("collapsed", collapsed);
+    configToggle.setAttribute("aria-expanded", String(!collapsed));
+    configToggle.textContent = collapsed ? "expand" : "collapse";
+    try {
+      localStorage.setItem(CONFIG_COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      /* storage unavailable (private mode etc.) — non-fatal */
+    }
+  }
+
+  configToggle.addEventListener("click", () =>
+    setConfigCollapsed(!config.classList.contains("collapsed")),
+  );
+
+  try {
+    if (localStorage.getItem(CONFIG_COLLAPSED_KEY) === "1")
+      setConfigCollapsed(true);
+  } catch {
+    /* ignore */
+  }
+
   // The max/min attrs don't stop manual typing, so clamp to [1, 300] on blur.
   const nodesShown = document.getElementById("nodes_shown") as HTMLInputElement;
   nodesShown.addEventListener("change", () => {
@@ -529,4 +760,109 @@ const sealSrc = (value) =>
         : Math.min(hi, Math.max(lo, val)),
     );
   });
+</script>
+
+<script>
+  // Network explorer + side panel, ported from explorer.astro's Observable-runtime setup to
+  // plain d3 (src/scripts/nwk_explorer.js). This block just maps explorer_2's controls onto
+  // the dataset-path shape the module expects and re-renders on any change. Registered after
+  // the block above so #nodes_shown is clamped before render() reads it.
+  import { loadGraph, renderNetworkExplorer } from "../scripts/nwk_explorer.js";
+  import { datasetPathFor } from "../scripts/graph_utils.js";
+
+  const graphEl = document.getElementById("nwk-explorer")!;
+  const panelEl = document.getElementById("nwk-metadata")!;
+  const agencySelect = document.getElementById("agency") as HTMLSelectElement;
+  const yearInputEl = document.getElementById("year_input") as HTMLInputElement;
+  const nodesShownEl = document.getElementById("nodes_shown") as HTMLInputElement;
+
+  // explorer_2 folds explorer.astro's separate weight_type + log selects into one three-way
+  // "weight" radio, and says "all" where explorer.astro said "aggregate". Unfold both back to
+  // the (agency, weightType, timeFrame, yr, log) shape datasetPathFor() expects.
+  function resolveParams() {
+    const timeFrameRaw =
+      document.querySelector<HTMLInputElement>('input[name="time_frame"]:checked')?.value ??
+      "annual";
+    const weightRaw =
+      document.querySelector<HTMLInputElement>('input[name="weight"]:checked')?.value ?? "bills";
+
+    return {
+      agency: agencySelect.value,
+      weightType: weightRaw === "bills" ? "base" : "spending",
+      log: weightRaw === "ln_spending_bills" ? "logged" : "unlogged",
+      timeFrame: timeFrameRaw === "all" ? "aggregate" : "annual",
+      year: Number(yearInputEl.value),
+      nodesShown: Number(nodesShownEl.value),
+    };
+  }
+
+  // Only the newest render() call may touch the DOM — guards against a slow fetch resolving
+  // after a later control change has already kicked off its own render.
+  let renderToken = 0;
+  let teardown: (() => void) | null = null;
+
+  async function render() {
+    const token = ++renderToken;
+    const { agency, weightType, log, timeFrame, year, nodesShown } = resolveParams();
+    const path = datasetPathFor(agency, weightType, timeFrame, year, log);
+
+    let data: any = null;
+    try {
+      data = await loadGraph(path);
+    } catch {
+      data = null;
+    }
+    if (token !== renderToken) return;
+
+    teardown?.();
+    teardown = null;
+    graphEl.textContent = "";
+    panelEl.textContent = "";
+
+    if (!data) {
+      graphEl.textContent = "No network dataset for this combination.";
+      return;
+    }
+    teardown = renderNetworkExplorer({ graphEl, panelEl, data, nodesShown });
+  }
+
+  agencySelect.addEventListener("change", render);
+  yearInputEl.addEventListener("change", render);
+  nodesShownEl.addEventListener("change", render);
+  document
+    .querySelectorAll('input[name="time_frame"], input[name="weight"]')
+    .forEach((el) => el.addEventListener("change", render));
+
+  render();
+</script>
+
+<script>
+  // Flow-through-time chart, ported from explorer.astro's "Explore flow through time" section
+  // (<AnnualFlowChart>). That component already runs on plain d3, so the port is just wiring:
+  // it follows explorer_2's shared #agency select directly (agency_selector prop), and this
+  // block mirrors the three-way "weight" radio onto the hidden #flow_weight <select> the
+  // component's weight_selector prop watches. explorer_2's radio values don't match the
+  // component's weight keys, so remap here -- the same unfold the network block's
+  // resolveParams() does for datasetPathFor().
+  const flowWeight = document.getElementById("flow_weight") as HTMLSelectElement;
+  const WEIGHT_KEY: Record<string, string> = {
+    bills: "base",
+    spending_bills: "spending_unlogged",
+    ln_spending_bills: "spending_logged",
+  };
+
+  function syncFlowWeight() {
+    const weightRaw =
+      document.querySelector<HTMLInputElement>('input[name="weight"]:checked')?.value ?? "bills";
+    const next = WEIGHT_KEY[weightRaw] ?? "base";
+    if (flowWeight.value === next) return;
+    flowWeight.value = next;
+    flowWeight.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  document
+    .querySelectorAll('input[name="weight"]')
+    .forEach((el) => el.addEventListener("change", syncFlowWeight));
+
+  syncFlowWeight();
 </script>
